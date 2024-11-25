@@ -1,10 +1,10 @@
-import { readdirSync } from 'node:fs';
-import { moduleHandle } from './loader.js';
+import { readdirSync } from 'node:fs'
+import { moduleHandle } from './loader.js'
 
-const events = async (client) => {
+const events = async client => {
     for (const dir of readdirSync('./src/triggers/')) {
-        await moduleHandle(client, `./src/triggers/${dir}/`, 'Triggers');
-    };
-};
+        await moduleHandle(client, `./src/triggers/${dir}/`, 'Triggers')
+    }
+}
 
-export default events;
+export default events

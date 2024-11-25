@@ -1,3 +1,3 @@
-export const isSnowflake = (id) => {
-    return /^\d+$/.test(id);
-};
+export const isSnowflake = id => {
+    return /^\d+$/.test(id)
+}

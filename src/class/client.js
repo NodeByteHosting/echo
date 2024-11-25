@@ -1,22 +1,22 @@
-import 'module-alias/register.js';
+import 'module-alias/register.js'
 
-import Discord, { Client, Collection, Partials, GatewayIntentBits } from 'discord.js';
-import { setClientPresence } from '../handlers/presence.js';
-import commands from '../handlers/commands.js';
-import events from '../handlers/events.js';
+import Discord, { Client, Collection, Partials, GatewayIntentBits } from 'discord.js'
+import { setClientPresence } from '../handlers/presence.js'
+import commands from '../handlers/commands.js'
+import events from '../handlers/events.js'
 
 class Indexie extends Client {
-    slash = new Collection();
-    select = new Collection();
-    modal = new Collection();
-    button = new Collection();
-    autocomplete = new Collection();
-    context = new Collection();
+    slash = new Collection()
+    select = new Collection()
+    modal = new Collection()
+    button = new Collection()
+    autocomplete = new Collection()
+    context = new Collection()
 
-    cooldowns = new Collection();
-    triggers = new Collection();
+    cooldowns = new Collection()
+    triggers = new Collection()
 
-    applicationCommandsArray = [];
+    applicationCommandsArray = []
 
     constructor() {
         super({
@@ -28,12 +28,12 @@ class Indexie extends Client {
             ],
             partials: [Partials.Message],
             allowedMentions: { parse: ['users', 'roles'], repliedUser: true }
-        });
+        })
 
-        this.Gateway = Discord;
-        this.rpc = { presence: setClientPresence };
-        this.logo = 'https://discord-forums.vercel.app/bot/logo.png';
-        this.footer = '© 2024 - NodeByte LTD';
+        this.Gateway = Discord
+        this.rpc = { presence: setClientPresence }
+        this.logo = 'https://discord-forums.vercel.app/bot/logo.png'
+        this.footer = '© 2024 - NodeByte LTD'
 
         this.colors = {
             primary: '#7289DA',
@@ -44,11 +44,11 @@ class Indexie extends Client {
     }
 
     start = async () => {
-        await events(this);
-        await commands(this);
+        await events(this)
+        await commands(this)
 
-        await this.login(process.env.TOKEN);
+        await this.login(process.env.TOKEN)
     }
 }
 
-export default Indexie;
+export default Indexie

@@ -1,4 +1,4 @@
-import { filterSlash } from "../../filters/slash.js";
+import { filterSlash } from '../../filters/slash.js'
 
 export default {
     structure: {
@@ -20,28 +20,26 @@ export default {
     },
 
     run: async (client, interaction) => {
+        const cmd = await interaction.options.getString('command')
 
-        let cmd = await interaction.options.getString('command');
-
-        if (cmd && !client.slash.get(cmd)) return interaction.reply({
-            embeds: [
-                new client.Gateway.EmbedBuilder()
-                    .setTitle('ERROR: invalid command')
-                    .setDescription(`The command \`${cmd}\` does not exist`)
-                    .setColor(client.colors.error)
-                    .setThumbnail(client.logo)
-                    .setTimestamp()
-                    .setFooter({
-                        text: client.footer,
-                        iconURL: client.logo
-                    })
-            ]
-        });
-
-        else if (cmd && client.slash.get(cmd)) {
-
-            const command = client.slash.get(cmd);
-            const name = command.structure.name.charAt(0).toUpperCase() + command.structure.name.slice(1);
+        if (cmd && !client.slash.get(cmd)) {
+            return interaction.reply({
+                embeds: [
+                    new client.Gateway.EmbedBuilder()
+                        .setTitle('ERROR: invalid command')
+                        .setDescription(`The command \`${cmd}\` does not exist`)
+                        .setColor(client.colors.error)
+                        .setThumbnail(client.logo)
+                        .setTimestamp()
+                        .setFooter({
+                            text: client.footer,
+                            iconURL: client.logo
+                        })
+                ]
+            })
+        } else if (cmd && client.slash.get(cmd)) {
+            const command = client.slash.get(cmd)
+            const name = command.structure.name.charAt(0).toUpperCase() + command.structure.name.slice(1)
 
             return interaction.reply({
                 embeds: [
@@ -49,24 +47,35 @@ export default {
                         .setTitle('Command Information')
                         .setColor(client.colors.primary)
                         .setThumbnail(client.logo)
-                        .setDescription(`${command.structure.description ? command.structure.description : 'No description provided'}`)
-                        .addFields({
-                            name: 'Name',
-                            value: name,
-                            inline: true
-                        }, {
-                            name: 'Category',
-                            value: command.structure.category,
-                            inline: true
-                        }, {
-                            name: 'Cooldown',
-                            value: command.structure.handlers.cooldown ? `${command.structure.handlers.cooldown / 1000} seconds` : 'None',
-                            inline: true
-                        }, {
-                            name: 'Permissions',
-                            value: command.structure.handlers.permissions.length ? command.structure.handlers.permissions.join(', ') : 'None',
-                            inline: true
-                        })
+                        .setDescription(
+                            `${command.structure.description ? command.structure.description : 'No description provided'}`
+                        )
+                        .addFields(
+                            {
+                                name: 'Name',
+                                value: name,
+                                inline: true
+                            },
+                            {
+                                name: 'Category',
+                                value: command.structure.category,
+                                inline: true
+                            },
+                            {
+                                name: 'Cooldown',
+                                value: command.structure.handlers.cooldown
+                                    ? `${command.structure.handlers.cooldown / 1000} seconds`
+                                    : 'None',
+                                inline: true
+                            },
+                            {
+                                name: 'Permissions',
+                                value: command.structure.handlers.permissions.length
+                                    ? command.structure.handlers.permissions.join(', ')
+                                    : 'None',
+                                inline: true
+                            }
+                        )
                         .setTimestamp()
                         .setFooter({
                             text: client.footer,
@@ -76,7 +85,7 @@ export default {
             })
         }
 
-        const info = await filterSlash({ client: client, category: 'Info' });
+        const info = await filterSlash({ client: client, category: 'Info' })
 
         return interaction.reply({
             embeds: [
@@ -96,6 +105,5 @@ export default {
                     })
             ]
         })
-
     }
 }

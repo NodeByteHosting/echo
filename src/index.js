@@ -1,12 +1,12 @@
-import 'module-alias/register.js';
-import dotenv from 'dotenv';
-import Indexie from './class/client.js';
+import 'module-alias/register.js'
+import dotenv from 'dotenv'
+import Indexie from './class/client.js'
 
-dotenv.config();
+dotenv.config()
 
-const client = new Indexie();
+const client = new Indexie()
 
-client.start();
+client.start()
 
-process.on('unhandledRejection', console.error);
-process.on('uncaughtException', console.error);
+process.on('unhandledRejection', console.error)
+process.on('uncaughtException', console.error)

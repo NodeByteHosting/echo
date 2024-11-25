@@ -5,38 +5,18 @@
         "moduleResolution": "Node",
         "baseUrl": "./",
         "paths": {
-            "@/*": [
-                "./*"
-            ],
-            "@client/*": [
-                "src/class/client/*"
-            ],
-            "@classes/*": [
-                "src/class/*"
-            ],
-            "@configs/*": [
-                "src/configs/*"
-            ],
-            "@database/*": [
-                "src/prisma/prisma.client/*"
-            ],
-            "@filters/*": [
-                "src/filters/*"
-            ],
-            "@functions/*": [
-                "src/functions/*"
-            ],
-            "@handlers/*": [
-                "src/handlers/*"
-            ]
+            "@/*": ["./*"],
+            "@client/*": ["src/class/client/*"],
+            "@classes/*": ["src/class/*"],
+            "@configs/*": ["src/configs/*"],
+            "@database/*": ["src/prisma/prisma.client/*"],
+            "@filters/*": ["src/filters/*"],
+            "@functions/*": ["src/functions/*"],
+            "@handlers/*": ["src/handlers/*"]
         },
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true
     },
-    "include": [
-        "src/**/*.js"
-    ],
-    "exclude": [
-        "node_modules"
-    ]
+    "include": ["src/**/*.js"],
+    "exclude": ["node_modules"]
 }

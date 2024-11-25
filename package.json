@@ -22,11 +22,16 @@
         "prisma": "^5.22.0"
     },
     "devDependencies": {
+        "@babel/eslint-parser": "^7.25.9",
+        "@babel/preset-env": "^7.26.0",
         "@commitlint/cli": "^19.6.0",
         "@commitlint/config-conventional": "^19.6.0",
         "commitlint": "^19.6.0",
+        "eslint": "^8",
+        "eslint-config-prettier": "^9.1.0",
         "husky": "^9.1.7",
         "lint-staged": "^15.2.10",
+        "prettier": "^3.3.3",
         "nodemon": "^3.1.7"
     },
     "_moduleAliases": {
@@ -41,7 +46,7 @@
     },
     "lint-staged": {
         "./src/**/*.{js,jsx,cjs}": [
-            "eslint --fix . ",
+            "eslint --fix .",
             "prettier --write ."
         ],
         "./src/**/*.{json,md,yml}": [

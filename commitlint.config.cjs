@@ -10,4 +10,4 @@ module.exports = {
         'type-empty': [2, 'never'],
         'scope-empty': [2, 'never']
     }
-};
+}
