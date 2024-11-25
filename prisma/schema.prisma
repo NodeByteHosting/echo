@@ -1,0 +1,101 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Attachment {
+    contentType String?
+    id          String  @id @default(uuid())
+    messageId   String
+    name        String
+    snowflakeId String
+    url         String
+    message     Message @relation(fields: [messageId], references: [id])
+}
+
+model Channel {
+    id          String @id @default(uuid())
+    name        String
+    snowflakeId String
+    topic       String
+    type        Int
+    posts       Post[]
+}
+
+model Message {
+    content          String
+    createdAt        DateTime
+    editedAt         DateTime?
+    id               String       @id @default(uuid())
+    postId           String
+    replyToMessageId String?
+    snowflakeId      String
+    userId           String
+    post             Post         @relation(fields: [postId], references: [id])
+    user             User         @relation(fields: [userId], references: [id])
+    attachments      Attachment[]
+}
+
+model Post {
+    answerId     String?
+    channelId    String?
+    createdAt    DateTime
+    editedAt     DateTime?
+    id           String    @id @default(uuid())
+    isIndexed    Boolean   @default(false)
+    isLocked     Boolean
+    lastActiveAt DateTime  @default(now())
+    snowflakeId  String
+    title        String
+    userId       String?
+    channel      Channel?  @relation(fields: [channelId], references: [id])
+    user         User?     @relation(fields: [userId], references: [id])
+    messages     Message[]
+}
+
+model User {
+    answersCount  Int        @default(0)
+    avatarUrl     String
+    discriminator String
+    id            String     @id @default(uuid())
+    isAdmin       Boolean    @default(false)
+    isModerator   Boolean    @default(false)
+    isHelper      Boolean    @default(false)
+    isPublic      Boolean    @default(false)
+    points        Int        @default(0)
+    snowflakeId   String
+    username      String
+    joinedAt      DateTime?
+    posts         Post[]
+    messages      Message[]
+    roles         Role[]     @relation("UserRoles")
+    UserRole      UserRole[]
+}
+
+model Role {
+    id       String     @id @default(uuid())
+    name     Roles      @default(BASE_USER)
+    users    User[]     @relation("UserRoles")
+    UserRole UserRole[]
+}
+
+model UserRole {
+    userId String
+    roleId String
+    user   User   @relation(fields: [userId], references: [id])
+    role   Role   @relation(fields: [roleId], references: [id])
+
+    @@id([userId, roleId])
+}
+
+enum Roles {
+    FORUM_ADMIN
+    FORUM_HELPER
+    FORUM_MODERATOR
+    FORUM_SPOTLIGHT
+    BASE_USER
+}

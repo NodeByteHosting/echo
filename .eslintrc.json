@@ -1,0 +1,140 @@
+{
+    "env": {
+        "browser": false,
+        "es2021": true,
+        "node": true
+    },
+    "extends": [
+        "eslint:recommended",
+        "plugin:import/errors",
+        "plugin:import/warnings",
+        "plugin:prettier/recommended"
+    ],
+    "parserOptions": {
+        "ecmaVersion": 12,
+        "sourceType": "module"
+    },
+    "rules": {
+        "no-var": "error", // Disallow var, use let and const instead
+        "prefer-const": "error", // Prefer const over let when variable is not reassigned
+        "no-unused-vars": [
+            "error",
+            {
+                "argsIgnorePattern": "^_"
+            }
+        ], // Disallow unused variables, ignore variables starting with _
+        "eqeqeq": [
+            "error",
+            "always"
+        ], // Require === and !==
+        "curly": "error", // Require curly braces for all control statements
+        "no-console": "warn", // Warn on console usage
+        "no-debugger": "error", // Disallow debugger statements
+        "no-trailing-spaces": "error", // Disallow trailing whitespace
+        "eol-last": [
+            "error",
+            "always"
+        ], // Require newline at the end of files
+        "semi": [
+            "error",
+            "always"
+        ], // Require semicolons
+        "quotes": [
+            "error",
+            "single",
+            {
+                "avoidEscape": true
+            }
+        ], // Prefer single quotes
+        "indent": [
+            "error",
+            2
+        ], // Enforce consistent indentation (2 spaces)
+        "comma-dangle": [
+            "error",
+            "never"
+        ], // Disallow trailing commas
+        "object-curly-spacing": [
+            "error",
+            "always"
+        ], // Enforce consistent spacing inside braces
+        "array-bracket-spacing": [
+            "error",
+            "never"
+        ], // Enforce consistent spacing inside array brackets
+        "arrow-spacing": [
+            "error",
+            {
+                "before": true,
+                "after": true
+            }
+        ], // Enforce consistent spacing before and after arrow functions
+        "space-before-function-paren": [
+            "error",
+            "never"
+        ], // Disallow space before function parenthesis
+        "keyword-spacing": [
+            "error",
+            {
+                "before": true,
+                "after": true
+            }
+        ], // Enforce consistent spacing before and after keywords
+        "space-infix-ops": "error", // Require spacing around infix operators
+        "key-spacing": [
+            "error",
+            {
+                "beforeColon": false,
+                "afterColon": true
+            }
+        ], // Enforce consistent spacing between keys and values in object literals
+        "no-multiple-empty-lines": [
+            "error",
+            {
+                "max": 1,
+                "maxEOF": 0
+            }
+        ], // Disallow multiple empty lines
+        "no-multi-spaces": "error", // Disallow multiple spaces
+        "no-whitespace-before-property": "error", // Disallow whitespace before properties
+        "space-before-blocks": [
+            "error",
+            "always"
+        ], // Enforce consistent spacing before blocks
+        "space-in-parens": [
+            "error",
+            "never"
+        ], // Disallow spaces inside parentheses
+        "spaced-comment": [
+            "error",
+            "always",
+            {
+                "exceptions": [
+                    "-"
+                ]
+            }
+        ], // Enforce consistent spacing after the // or /* in a comment
+        "consistent-return": "error", // Require return statements to either always or never specify values
+        "no-else-return": [
+            "error",
+            {
+                "allowElseIf": false
+            }
+        ], // Disallow return before else
+        "no-lonely-if": "error", // Disallow if statements as the only statement in else blocks
+        "no-nested-ternary": "error", // Disallow nested ternary expressions
+        "no-unneeded-ternary": [
+            "error",
+            {
+                "defaultAssignment": false
+            }
+        ], // Disallow ternary operators when simpler alternatives exist
+        "prefer-arrow-callback": [
+            "error",
+            {
+                "allowNamedFunctions": false,
+                "allowUnboundThis": true
+            }
+        ] // Prefer arrow functions as callbacks
+    }
+}
