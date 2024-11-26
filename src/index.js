@@ -1,6 +1,6 @@
-import 'module-alias/register.js'
 import dotenv from 'dotenv'
 import Indexie from './class/client.js'
+import { existsSync } from 'node:fs'
 
 dotenv.config()
 

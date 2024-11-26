@@ -8,8 +8,8 @@ const deploy = async client => {
         log('Started loading application commands.', 'info')
 
         const commandJsonData = [
-            ...Array.from(client.slash.values()).map(c => c.structure.toJSON()),
-            ...Array.from(client.context.values()).map(c => c.structure.toJSON())
+            ...Array.from(client.slash.values()).map(c => c.structure),
+            ...Array.from(client.context.values()).map(c => c.structure)
         ]
 
         await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {

@@ -1,5 +1,6 @@
 import { Events } from 'discord.js'
 import { log } from '../../functions/logger.js'
+import { checkPermissions } from '../../functions/permissions.js'
 
 const cooldown = new Map()
 
@@ -21,6 +22,36 @@ export default {
 
         if (!command) {
             return
+        }
+
+        const requiredPerms = command.structure.handlers.permissions || []
+
+        if (requiredPerms.length > 0) {
+            const hasPermission = await checkPermissions({ client, perms: requiredPerms, user: interaction.user })
+            const fetchRoles = await client.db.prisma.user.findFirst({ where: { snowflakeId: interaction.user.id } })
+
+            if (!hasPermission) {
+                return interaction.reply({
+                    ephemeral: true,
+                    embeds: [
+                        new client.Gateway.EmbedBuilder()
+                            .setTitle('ERROR: missing permissions')
+                            .setColor(client.colors.error)
+                            .setDescription('You do not have the permissions necessary to run this command.')
+                            .setThumbnail(client.logo)
+                            .addFields(
+                                {
+                                    name: 'Required permissions',
+                                    value: requiredPerms.join(', ')
+                                },
+                                {
+                                    name: 'Your permissions',
+                                    value: fetchRoles.permissions.join(', ')
+                                }
+                            )
+                    ]
+                })
+            }
         }
 
         try {

@@ -1,5 +1,7 @@
 import { Events } from 'discord.js'
 import { log } from '../../functions/logger.js'
+import { indexGuildMember } from '../../indexed/users.js'
+import { getRoleIds } from '../../functions/getRoleIds.js'
 
 export default {
     event: Events.ClientReady,

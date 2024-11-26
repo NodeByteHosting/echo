@@ -3,99 +3,89 @@ generator client {
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
-}
-
-model Attachment {
-    contentType String?
-    id          String  @id @default(uuid())
-    messageId   String
-    name        String
-    snowflakeId String
-    url         String
-    message     Message @relation(fields: [messageId], references: [id])
+    provider  = "postgresql"
+    url       = env("ACCELERATE_DB")
+    directUrl = env("DATABASE_URL")
 }
 
 model Channel {
-    id          String @id @default(uuid())
-    name        String
-    snowflakeId String
-    topic       String
-    type        Int
-    posts       Post[]
+    id      String  @id @unique // The ID of the channel.
+    name    String  @unique // The name of the channel.
+    topic   String // The topic of the channel.
+    indexed Boolean @default(false) // If the channel is indexed, we will use its threads.
+    type    Int // The type of the channel.
+    posts   Post[] // The threads of the channel.
 }
 
 model Message {
-    content          String
-    createdAt        DateTime
-    editedAt         DateTime?
-    id               String       @id @default(uuid())
-    postId           String
-    replyToMessageId String?
-    snowflakeId      String
-    userId           String
-    post             Post         @relation(fields: [postId], references: [id])
-    user             User         @relation(fields: [userId], references: [id])
-    attachments      Attachment[]
+    id          String       @id @unique // The ID of the message.
+    content     String // The content of the message.
+    createdAt   DateTime     @default(now()) // The creation date of the message.
+    editedAt    DateTime? // The last edit date of the message.
+    lastActive  DateTime     @default(now()) // The last activity date of the message.
+    isReplyTo   String? // The ID of the message that this message is a reply to.
+    attachments Attachment[] // The attachments of the message.
+    postId      String // The ID of the thread that this message belongs to.
+    authorId    String // The ID of the author of the message.
+    post        Post         @relation(fields: [postId], references: [id]) // The thread that this message belongs to.
+    author      User         @relation(fields: [authorId], references: [id]) // The author of the message.
+}
+
+model Attachment {
+    id        String  @id @unique // The ID of the attachment.
+    url       String // The URL of the attachment.
+    name      String // The name of the attachment.
+    message   Message @relation(fields: [messageId], references: [id]) // The message that this attachment belongs to.
+    messageId String // The ID of the message that this attachment belongs to.
 }
 
 model Post {
-    answerId     String?
-    channelId    String?
-    createdAt    DateTime
-    editedAt     DateTime?
-    id           String    @id @default(uuid())
-    isIndexed    Boolean   @default(false)
-    isLocked     Boolean
-    lastActiveAt DateTime  @default(now())
-    snowflakeId  String
-    title        String
-    userId       String?
-    channel      Channel?  @relation(fields: [channelId], references: [id])
-    user         User?     @relation(fields: [userId], references: [id])
-    messages     Message[]
+    id         String    @id @unique // The ID of the thread.
+    title      String // The title of the thread.
+    owner      String? // The ID of the user that created the thread.
+    answer     String? // Message that was marked as the correct answer for the thread question/reason.
+    isIndexed  Boolean   @default(false) // If the thread is indexed, we will use its messages.
+    isLocked   Boolean   @default(false) // If the thread is locked, no one can reply to it.
+    createdAt  DateTime  @default(now()) // The creation date of the thread.
+    editedAt   DateTime // The last edit date of the thread.
+    lastActive DateTime  @default(now()) // The last activity date of the thread.
+    user       User?     @relation(fields: [owner], references: [id]) // The user that created the thread.
+    channel    Channel?  @relation(fields: [channelId], references: [id]) // The channel that the thread belongs to.
+    channelId  String? // The ID of the channel that the thread belongs to.
+    messages   Message[] // The messages of the thread.
 }
 
 model User {
-    answersCount  Int        @default(0)
-    avatarUrl     String
-    discriminator String
-    id            String     @id @default(uuid())
-    isAdmin       Boolean    @default(false)
-    isModerator   Boolean    @default(false)
-    isHelper      Boolean    @default(false)
-    isPublic      Boolean    @default(false)
-    points        Int        @default(0)
-    snowflakeId   String
-    username      String
-    joinedAt      DateTime?
-    posts         Post[]
-    messages      Message[]
-    roles         Role[]     @relation("UserRoles")
-    UserRole      UserRole[]
+    id           String    @id @default(uuid())
+    avatarUrl    String
+    username     String
+    globalName   String
+    snowflakeId  String    @unique
+    isAdmin      Boolean   @default(false)
+    isModerator  Boolean   @default(false)
+    isHelper     Boolean   @default(false)
+    isRegular    Boolean   @default(false)
+    isPublic     Boolean   @default(false)
+    isBaseUser   Boolean   @default(true)
+    isBanned     Boolean   @default(false)
+    answersCount Int       @default(0)
+    points       Int       @default(0)
+    joinedAt     DateTime?
+    posts        Post[]
+    messages     Message[]
+    roles        Role[]    @relation("UserRoles")
 }
 
 model Role {
-    id       String     @id @default(uuid())
-    name     Roles      @default(BASE_USER)
-    users    User[]     @relation("UserRoles")
-    UserRole UserRole[]
-}
-
-model UserRole {
-    userId String
-    roleId String
-    user   User   @relation(fields: [userId], references: [id])
-    role   Role   @relation(fields: [roleId], references: [id])
-
-    @@id([userId, roleId])
+    id    String @id @unique @default(uuid())
+    name  Roles  @default(MEMBER)
+    users User[] @relation("UserRoles")
 }
 
 enum Roles {
-    FORUM_ADMIN
-    FORUM_HELPER
-    FORUM_MODERATOR
-    FORUM_SPOTLIGHT
-    BASE_USER
+    ADMINISTRATOR
+    MODERATOR
+    SUPPORT
+    SPOTLIGHT
+    MEMBER
 }
