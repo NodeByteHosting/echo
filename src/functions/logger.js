@@ -1,15 +1,23 @@
 import chalk from 'chalk'
+import debug from 'debug'
 
-export const log = (string, style) => {
+debug.enable('discord,discord:*')
+
+debug.useColors = () => true
+
+export const baseLog = debug('discord')
+
+export const log = (string, style, ...args) => {
     const styles = {
-        info: { prefix: chalk.blue('[INFO]'), logFunction: console.log },
-        err: { prefix: chalk.red('[ERROR]'), logFunction: console.error },
-        error: { prefix: chalk.red('[ERROR]'), logFunction: console.error },
-        debug: { prefix: chalk.magenta('[DEBUG]'), logFunction: console.log },
-        warn: { prefix: chalk.yellow('[WARNING]'), logFunction: console.warn },
-        done: { prefix: chalk.green('[SUCCESS]'), logFunction: console.log }
+        info: { prefix: chalk.blue('[INFO]'), logFunction: console.log, debugFunction: baseLog.extend('info') },
+        err: { prefix: chalk.red('[ERROR]'), logFunction: console.error, debugFunction: baseLog.extend('error') },
+        error: { prefix: chalk.red('[ERROR]'), logFunction: console.error, debugFunction: baseLog.extend('error') },
+        debug: { prefix: chalk.magenta('[DEBUG]'), logFunction: console.log, debugFunction: baseLog.extend('debug') },
+        warn: { prefix: chalk.yellow('[WARNING]'), logFunction: console.warn, debugFunction: baseLog.extend('warn') },
+        done: { prefix: chalk.green('[SUCCESS]'), logFunction: console.log, debugFunction: baseLog.extend('done') }
     }
 
-    const selectedStyle = styles[style] || { logFunction: console.log }
-    selectedStyle.logFunction(`${selectedStyle.prefix || ''} ${string}`)
+    const selectedStyle = styles[style] || { logFunction: console.log, debugFunction: baseLog.extend('log') }
+    selectedStyle.logFunction(`${selectedStyle.prefix || ''} ${string}`, ...args)
+    selectedStyle.debugFunction(string, ...args)
 }

@@ -38,6 +38,7 @@ Prisma Studio is a visual editor for your database. It allows you to explore and
 #### How to Use Prisma Studio
 
 1. **Start Prisma Studio**: Run the following command to open Prisma Studio:
+
     ```bash
     [bun|yarn|npm] run prisma:studio
     ```
@@ -50,14 +51,13 @@ Prisma Studio is a visual editor for your database. It allows you to explore and
 
 Prisma Studio connects to your database using the connection details specified in your Prisma schema file (`schema.prisma`). It provides a visual representation of your database schema and allows you to interact with the data in a more intuitive way.
 
-- **View Records**: Browse through the records in your database tables.
-- **Create Records**: Add new records to your database tables.
-- **Update Records**: Modify existing records in your database tables.
-- **Delete Records**: Remove records from your database tables.
+-   **View Records**: Browse through the records in your database tables.
+-   **Create Records**: Add new records to your database tables.
+-   **Update Records**: Modify existing records in your database tables.
+-   **Delete Records**: Remove records from your database tables.
 
 Prisma Studio is a powerful tool that simplifies database management and makes it easier to work with your data.
 
 > **NOTE**: It is recommended to use Prisma Studio in a development or staging environment. Running Prisma Studio in a production environment can pose security risks and affect performance. Use dedicated database management tools for production environments, we highly recommend [querym](https://querym.net/)
 
 ---
-

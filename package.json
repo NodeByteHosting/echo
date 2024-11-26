@@ -21,6 +21,7 @@
         "@prisma/extension-accelerate": "^1.2.1",
         "chalk": "^5.3.0",
         "debug": "^4.3.7",
+        "dedent": "^1.5.3",
         "discord.js": "^14.16.3",
         "dotenv": "^16.4.5",
         "lru-cache": "^11.0.2",
