@@ -1,5 +1,5 @@
-import { cmdTypes } from '../../configs/cmdTypes.config.js'
-import { getRoleIds } from '../../functions/getRoleIds.js'
+import { cmdTypes } from '../../../configs/cmdTypes.config.js'
+import { getRoleIds } from '../../../functions/getRoleIds.js'
 
 export default {
     structure: {
@@ -16,6 +16,12 @@ export default {
                 description: 'Manage a user in our database.',
                 type: cmdTypes.SUB_COMMAND_GROUP,
                 options: [
+                    {
+                        name: 'help',
+                        description: 'Get help with managing users.',
+                        type: cmdTypes.STRING,
+                        required: false
+                    },
                     {
                         name: 'permissions',
                         description: 'Add or remove a permission from a user.',
@@ -56,7 +62,7 @@ export default {
     },
 
     run: async (client, interaction) => {
-        await interaction.deferReply({ ephemeral: true })
+        await interaction.deferReply()
 
         const subCommandGroup = interaction.options.getSubcommandGroup()
         const subCommand = interaction.options.getSubcommand()
@@ -98,6 +104,9 @@ export default {
                 await client.db.prisma.user.update({
                     where: { snowflakeId: user.id },
                     data: {
+                        isAdmin: permission === 'ADMINISTRATOR',
+                        isModerator: permission === 'MODERATOR',
+                        isHelper: permission === 'SUPPORT',
                         roles: {
                             connect: { id: roleId }
                         }
@@ -110,6 +119,14 @@ export default {
             } else if (action === 'remove_perms') {
                 const hasRole = dbUser.roles.some(role => role.id === roleId)
 
+                const owners = ['510065483693817867', '324646179134636043', '1173430998176899133']
+
+                if (owners.includes(user.id) && !owners.includes(interaction.user.id)) {
+                    return interaction.editReply({
+                        content: 'You cannot remove permissions from our higher management.'
+                    })
+                }
+
                 if (!hasRole) {
                     return interaction.editReply({
                         content: `The user does not have the permission \`${permission}\`.`
@@ -119,6 +136,9 @@ export default {
                 await client.db.prisma.user.update({
                     where: { snowflakeId: user.id },
                     data: {
+                        isAdmin: permission === 'ADMINISTRATOR' ? false : dbUser.isAdmin,
+                        isModerator: permission === 'MODERATOR' ? false : dbUser.isModerator,
+                        isHelper: permission === 'SUPPORT' ? false : dbUser.isHelper,
                         roles: {
                             disconnect: { id: roleId }
                         }

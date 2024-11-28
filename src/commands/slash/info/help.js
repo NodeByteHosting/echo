@@ -1,4 +1,4 @@
-import { filterSlash } from '../../filters/slash.js'
+import { filterSlash } from '../../../filters/slash.js'
 
 export default {
     structure: {
@@ -86,6 +86,7 @@ export default {
         }
 
         const info = await filterSlash({ client: client, category: 'Info' })
+        const ptero = await filterSlash({ client: client, category: 'Pterodactyl' })
 
         return interaction.reply({
             embeds: [
@@ -94,10 +95,16 @@ export default {
                     .setColor(client.colors.primary)
                     .setThumbnail(client.logo)
                     .setDescription(`Here are all the available commands!`)
-                    .addFields({
-                        name: 'Info Commands',
-                        value: info.length ? info.join(', ') : 'No commands available'
-                    })
+                    .addFields(
+                        {
+                            name: 'Info Commands',
+                            value: info.length ? info.join(', ') : 'No commands available'
+                        },
+                        {
+                            name: 'Pterodactyl Commands',
+                            value: ptero.length ? ptero.join(', ') : 'No commands available'
+                        }
+                    )
                     .setTimestamp()
                     .setFooter({
                         text: client.footer,

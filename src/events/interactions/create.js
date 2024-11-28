@@ -18,7 +18,7 @@ export default {
             return
         }
 
-        const command = client.slash.get(interaction.commandName)
+        const command = client.slash.get(interaction.commandName) || client.private.get(interaction.commandName)
 
         if (!command) {
             return

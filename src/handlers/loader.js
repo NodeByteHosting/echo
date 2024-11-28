@@ -18,7 +18,7 @@ const moduleCommandsHandle = async (client, importPath, type) => {
         return
     }
 
-    if (['slash', 'context'].includes(type)) {
+    if (['slash', 'context', 'private'].includes(type)) {
         client[type].set(module.structure.name, module)
         log(`Loaded new command: ` + importPath, 'info')
     }

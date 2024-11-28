@@ -7,6 +7,7 @@ import events from '../handlers/events.js'
 
 class Indexie extends Client {
     slash = new Collection()
+    private = new Collection()
     select = new Collection()
     modal = new Collection()
     button = new Collection()
