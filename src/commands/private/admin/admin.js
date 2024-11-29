@@ -19,7 +19,7 @@ export default {
                     {
                         name: 'help',
                         description: 'Get help with managing users.',
-                        type: cmdTypes.STRING,
+                        type: cmdTypes.SUB_COMMAND,
                         required: false
                     },
                     {

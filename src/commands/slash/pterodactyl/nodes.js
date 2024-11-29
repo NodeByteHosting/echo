@@ -1,6 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js'
 import { formattedSize } from '../../../functions/formattedSize.js'
-import axios from 'axios'
+import { PterodactylClient } from '../../../class/pterodactyl.js'
+import { log } from '../../../functions/logger.js'
 
 export default {
     structure: {
@@ -19,20 +20,10 @@ export default {
 
         await interaction.deferReply()
 
-        const response = await axios
-            .get(`${apiUrl}/api/application/nodes`, {
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            })
-            .catch(err => {
-                console.error('Error:', err.stack)
-            })
+        const pterodactylClient = new PterodactylClient(apiUrl, apiKey)
 
-        if (response.data && response.data.data) {
-            const nodes = response.data.data
+        try {
+            const nodes = await pterodactylClient.getNodes()
 
             const embeds = nodes.map(node => {
                 const attr = node.attributes
@@ -93,7 +84,12 @@ export default {
                 } else if (i.customId === 'next') {
                     currentPage = currentPage === embeds.length - 1 ? 0 : currentPage + 1
                 } else if (i.customId === 'close') {
-                    await interaction.deleteReply()
+                    try {
+                        await interaction.deleteReply()
+                    } catch (error) {
+                        log(`An error occurred while deleting the reply: ${error.message}`, 'error')
+                        log(`Stack Trace: ${error.stack}`, 'error')
+                    }
                     return
                 }
                 await i.deferUpdate()
@@ -103,13 +99,16 @@ export default {
             collector.on('end', async () => {
                 await interaction.editReply({ components: [] })
             })
-        } else {
+        } catch (error) {
+            log(`An error occurred while fetching the nodes: ${error.message}`, 'error')
+            log(`Stack Trace: ${error.stack}`, 'error')
+
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
-                        .setTitle('Error')
+                        .setTitle('Error: failed to fetch nodes')
                         .setColor('#ff0000')
-                        .setDescription('An error occurred while fetching the nodes.')
+                        .setDescription(error.message)
                         .setTimestamp()
                         .setFooter({
                             text: client.footer,

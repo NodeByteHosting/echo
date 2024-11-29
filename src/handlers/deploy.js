@@ -31,6 +31,7 @@ const deploy = async client => {
         log('Successfully reloaded application (/) commands.', 'done')
     } catch (error) {
         log(`An error occurred while loading application (/) commands: ${error}`, 'error')
+        log(`Stack trace: ${error.stack}`, 'error')
     }
 }
 
