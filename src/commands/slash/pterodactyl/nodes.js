@@ -20,10 +20,10 @@ export default {
 
         await interaction.deferReply()
 
-        const pterodactylClient = new PterodactylClient(apiUrl, apiKey)
+        const pterodactyl = new PterodactylClient(apiUrl, apiKey)
 
         try {
-            const nodes = await pterodactylClient.getNodes()
+            const nodes = await pterodactyl.getNodes()
 
             const embeds = nodes.map(node => {
                 const attr = node.attributes
