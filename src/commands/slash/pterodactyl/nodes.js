@@ -1,4 +1,4 @@
-import { pagination, ButtonTypes, ButtonStyles } from '@devraelfreeze/discordjs-pagination'
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js'
 import { formattedSize } from '../../../functions/formattedSize.js'
 import axios from 'axios'
 
@@ -28,7 +28,7 @@ export default {
                 }
             })
             .catch(err => {
-                console.error('Bruhh:' + err.stack)
+                console.error('Error:', err.stack)
             })
 
         if (response.data && response.data.data) {
@@ -45,9 +45,9 @@ export default {
                 const uploadSize = formattedSize(attr.upload_size)
                 const overalloc = formattedSize(attr.memory_overallocate + attr.disk_overallocate)
 
-                return new client.Gateway.EmbedBuilder()
+                return new EmbedBuilder()
                     .setTitle(attr.name === 'ThunderDuck-MC-EU' ? 'Node: DEDI-MC-US-01' : 'Node: DEDI-MC-GER-01')
-                    .setColor(client.colors.primary)
+                    .setColor('#0099ff')
                     .setThumbnail(client.logo)
                     .addFields(
                         { name: 'Maintenance Mode:', value: maint, inline: true },
@@ -67,42 +67,56 @@ export default {
                     })
             })
 
-            return pagination({
-                embeds: embeds,
-                author: interaction.member.user,
-                interaction: interaction,
-                ephemeral: false,
-                time: 40000,
-                disableButtons: true,
-                fastSkip: false,
-                pageTravel: false,
-                buttons: [
-                    {
-                        type: ButtonTypes.previous,
-                        label: 'Previous Node',
-                        style: ButtonStyles.Primary
-                    },
-                    {
-                        type: ButtonTypes.next,
-                        label: 'Next Node',
-                        style: ButtonStyles.Success
-                    }
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('previous').setLabel('Previous Node').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId('next').setLabel('Next Node').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger)
+            )
+
+            let currentPage = 0
+
+            const updateReply = async () => {
+                await interaction.editReply({
+                    embeds: [embeds[currentPage]],
+                    components: [row]
+                })
+            }
+
+            await updateReply()
+
+            const filter = i => i.customId === 'previous' || i.customId === 'next' || i.customId === 'close'
+            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 })
+
+            collector.on('collect', async i => {
+                if (i.customId === 'previous') {
+                    currentPage = currentPage === 0 ? embeds.length - 1 : currentPage - 1
+                } else if (i.customId === 'next') {
+                    currentPage = currentPage === embeds.length - 1 ? 0 : currentPage + 1
+                } else if (i.customId === 'close') {
+                    await interaction.deleteReply()
+                    return
+                }
+                await i.deferUpdate()
+                await updateReply()
+            })
+
+            collector.on('end', async () => {
+                await interaction.editReply({ components: [] })
+            })
+        } else {
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('Error')
+                        .setColor('#ff0000')
+                        .setDescription('An error occurred while fetching the nodes.')
+                        .setTimestamp()
+                        .setFooter({
+                            text: client.footer,
+                            iconURL: client.logo
+                        })
                 ]
             })
         }
-
-        return interaction.reply({
-            embeds: [
-                new client.Gateway.EmbedBuilder()
-                    .setTitle('Error')
-                    .setColor(client.colors.error)
-                    .setDescription('An error occurred while fetching the nodes.')
-                    .setTimestamp()
-                    .setFooter({
-                        text: client.footer,
-                        iconURL: client.logo
-                    })
-            ]
-        })
     }
 }

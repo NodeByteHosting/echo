@@ -16,7 +16,6 @@
         "prepare": "husky"
     },
     "dependencies": {
-        "@devraelfreeze/discordjs-pagination": "^2.7.6",
         "@faker-js/faker": "^9.2.0",
         "@prisma/client": "^5.22.0",
         "@prisma/extension-accelerate": "^1.2.1",
