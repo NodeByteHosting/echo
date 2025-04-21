@@ -1,6 +1,9 @@
 import { log } from '../functions/logger.js'
 import { PrismaClient } from '@prisma/client'
 import { withAccelerate } from '@prisma/extension-accelerate'
+import { UserModule } from './modules/users.js'
+import { TicketModule } from './modules/tickets.js'
+import { AgentModule } from './modules/agents.js'
 import EchoBot from '../class/client.js'
 
 const prisma = new PrismaClient().$extends(withAccelerate())
@@ -19,6 +22,11 @@ export class db {
 
         this.prisma = prisma
         this.bot = EchoBot
+
+        // Initialize modules
+        this.users = new UserModule(this.prisma)
+        this.tickets = new TicketModule(this.prisma)
+        this.agents = new AgentModule(this.prisma)
 
         this.logs = {
             info: msg => log(msg, 'info'),
