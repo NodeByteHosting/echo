@@ -104,24 +104,37 @@ export class MessageHandler {
                                     'Please review our legal documents before using our services.',
                                     '',
                                     '**Important Notice:**',
-                                    'By using our services, you agree to comply with these terms.'
+                                    'By using our services, you agree to comply with these terms.',
+                                    '',
+                                    '**Need Help?**',
+                                    'Contact our legal team at legal@nodebyte.host'
                                 ].join('\n')
                             )
                             .setColor(this.client.colors.primary)
                             .addFields([
                                 {
                                     name: '📜 Terms of Service',
-                                    value: '[View Terms](https://nodebyte.host/legal/terms)\nOur service terms and conditions',
+                                    value: '[View Terms](https://nodebyte.host/legal/terms)\nKey guidelines and service terms',
                                     inline: true
                                 },
                                 {
                                     name: '🔒 Privacy Policy',
-                                    value: '[View Policy](https://nodebyte.host/legal/privacy)\nHow we handle your data',
+                                    value: '[View Policy](https://nodebyte.host/legal/privacy)\nData handling and protection',
                                     inline: true
                                 },
                                 {
-                                    name: '📋 Use License',
-                                    value: '[View License](https://nodebyte.host/legal/license)\nService usage guidelines',
+                                    name: '💰 Refund Policy',
+                                    value: '[View Policy](https://nodebyte.host/legal/refunds)\nRefund terms and conditions',
+                                    inline: true
+                                },
+                                {
+                                    name: '🍪 Cookie Policy',
+                                    value: '[View Policy](https://nodebyte.host/legal/cookies)\nHow we use cookies',
+                                    inline: true
+                                },
+                                {
+                                    name: '⚖️ DMCA Policy',
+                                    value: '[View Policy](https://nodebyte.host/legal/dmca)\nCopyright protection procedures',
                                     inline: true
                                 }
                             ])

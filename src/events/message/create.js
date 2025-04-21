@@ -6,7 +6,8 @@ import { Events } from 'discord.js'
  */
 const COMMANDS = {
     help: ['help', 'h'],
-    support: ['support', 'sp']
+    support: ['support', 'sp'],
+    legal: ['legal', 'tos', 'privacy']
 }
 
 /**
@@ -53,10 +54,21 @@ export default {
 
         // Execute command if found and handler exists
         if (command && client.msgHandler.send[command]) {
-            return client.msgHandler.send[command](message)
+            try {
+                await client.msgHandler.send[command](message)
+                await message.delete()
+            } catch (error) {
+                console.error('Failed to process command:', error)
+            }
+            return
         }
 
         // Default to help command if no valid command specified
-        return client.msgHandler.send.help(message)
+        try {
+            await client.msgHandler.send.help(message)
+            await message.delete()
+        } catch (error) {
+            console.error('Failed to send help message:', error)
+        }
     }
 }
