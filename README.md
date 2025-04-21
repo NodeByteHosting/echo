@@ -46,7 +46,7 @@ You’re welcome to use Echo in projects **within the NodeByte ecosystem**. For 
 | ![OnCall](./assets/echo-oncall.png) | Echo taking a support call |
 | ![OnCall2](./assets/echo-oncall2.png) | Echo taking a another support call |
 | ![Virtual](./assets/echo-vr.png) | Echo playing VR |
-| ![NotFound](./assets/echo-404.png) | Echo can not found |
+| ![NotFound](./assets/echo-404.png) | Echo can not be found |
 | ![NotFound](./assets/echo-500.png) | Echo sees an error |
 
 
