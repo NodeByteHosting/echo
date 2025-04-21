@@ -1,9 +1,8 @@
 {
-    "name": "@nodebyte/indexie",
+    "name": "@nodebyte/echo",
     "description": "NodeByte’s clever fox. Always curious, always connected, and always ready to lend a paw.",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "type": "module",
-    "author": "CodeMeAPixel <https://codemeapixel.dev>",
     "main": "src/index.js",
     "scripts": {
         "dev": "nodemon src/index.js",
