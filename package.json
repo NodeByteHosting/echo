@@ -1,15 +1,14 @@
 {
     "name": "@nodebyte/indexie",
+    "description": "NodeByte’s clever fox. Always curious, always connected, and always ready to lend a paw.",
     "version": "1.0.0",
     "type": "module",
-    "author": "Toxic Dev",
+    "author": "CodeMeAPixel <https://codemeapixel.dev>",
     "main": "src/index.js",
     "scripts": {
         "dev": "nodemon src/index.js",
         "start": "node src/index.js",
         "prisma:generate": "prisma generate",
-        "prisma:migrate": "prisma migrate dev",
-        "prisma:seedroles": "node scripts/seedRoles.js",
         "prisma:studio": "prisma studio",
         "prisma:push": "prisma db push",
         "postinstall": "prisma generate",

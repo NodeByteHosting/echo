@@ -1,11 +1,12 @@
 import Discord, { Client, Collection, Partials, GatewayIntentBits } from 'discord.js'
 import { setClientPresence } from '../handlers/presence.js'
+import { MessageHandler } from '../handlers/messages.js'
 import { db } from '../database/client.js'
 import deploy from '../handlers/deploy.js'
 import commands from '../handlers/commands.js'
 import events from '../handlers/events.js'
 
-class Indexie extends Client {
+class EchoBot extends Client {
     slash = new Collection()
     private = new Collection()
     select = new Collection()
@@ -35,8 +36,11 @@ class Indexie extends Client {
 
         this.db = db.getInstance()
         this.rpc = { presence: setClientPresence }
-        this.logo = 'https://discord-forums.vercel.app/bot/logo.png'
-        this.footer = '© 2024 - NodeByte LTD'
+
+        this.msgHandler = new MessageHandler(this)
+
+        this.logo = 'https://codemeapixel.dev/echobot/EchoChilling.png'
+        this.footer = '© 2025 - NodeByte LTD'
 
         this.colors = {
             primary: '#7289DA',
@@ -55,4 +59,4 @@ class Indexie extends Client {
     }
 }
 
-export default Indexie
+export default EchoBot

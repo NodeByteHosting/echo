@@ -3,89 +3,102 @@ generator client {
 }
 
 datasource db {
-    provider  = "postgresql"
-    url       = env("ACCELERATE_DB")
-    directUrl = env("DATABASE_URL")
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
-model Channel {
-    id      String  @id @unique // The ID of the channel.
-    name    String  @unique // The name of the channel.
-    topic   String // The topic of the channel.
-    indexed Boolean @default(false) // If the channel is indexed, we will use its threads.
-    type    Int // The type of the channel.
-    posts   Post[] // The threads of the channel.
+enum UserRole {
+    USER
+    SUPPORT_AGENT
+    ADMIN
+    MODERATOR
 }
 
-model Message {
-    id          String       @id @unique // The ID of the message.
-    content     String // The content of the message.
-    createdAt   DateTime     @default(now()) // The creation date of the message.
-    editedAt    DateTime? // The last edit date of the message.
-    lastActive  DateTime     @default(now()) // The last activity date of the message.
-    isReplyTo   String? // The ID of the message that this message is a reply to.
-    attachments Attachment[] // The attachments of the message.
-    postId      String // The ID of the thread that this message belongs to.
-    authorId    String // The ID of the author of the message.
-    post        Post         @relation(fields: [postId], references: [id]) // The thread that this message belongs to.
-    author      User         @relation(fields: [authorId], references: [id]) // The author of the message.
+enum TicketStatus {
+    OPEN
+    IN_PROGRESS
+    RESOLVED
+    CLOSED
+    ESCALATED
 }
 
-model Attachment {
-    id        String  @id @unique // The ID of the attachment.
-    url       String // The URL of the attachment.
-    name      String // The name of the attachment.
-    message   Message @relation(fields: [messageId], references: [id]) // The message that this attachment belongs to.
-    messageId String // The ID of the message that this attachment belongs to.
-}
-
-model Post {
-    id         String    @id @unique // The ID of the thread.
-    title      String // The title of the thread.
-    owner      String? // The ID of the user that created the thread.
-    answer     String? // Message that was marked as the correct answer for the thread question/reason.
-    isIndexed  Boolean   @default(false) // If the thread is indexed, we will use its messages.
-    isLocked   Boolean   @default(false) // If the thread is locked, no one can reply to it.
-    createdAt  DateTime  @default(now()) // The creation date of the thread.
-    editedAt   DateTime // The last edit date of the thread.
-    lastActive DateTime  @default(now()) // The last activity date of the thread.
-    user       User?     @relation(fields: [owner], references: [id]) // The user that created the thread.
-    channel    Channel?  @relation(fields: [channelId], references: [id]) // The channel that the thread belongs to.
-    channelId  String? // The ID of the channel that the thread belongs to.
-    messages   Message[] // The messages of the thread.
+enum Permission {
+    CREATE_TICKET
+    VIEW_TICKET
+    CLOSE_TICKET
+    ASSIGN_TICKET
+    BAN_USER
+    UNBAN_USER
+    MANAGE_ROLES
 }
 
 model User {
-    id           String    @id @default(uuid())
-    avatarUrl    String
-    username     String
-    globalName   String
-    snowflakeId  String    @unique
-    isAdmin      Boolean   @default(false)
-    isModerator  Boolean   @default(false)
-    isHelper     Boolean   @default(false)
-    isRegular    Boolean   @default(false)
-    isPublic     Boolean   @default(false)
-    isBaseUser   Boolean   @default(true)
-    isBanned     Boolean   @default(false)
-    answersCount Int       @default(0)
-    points       Int       @default(0)
-    joinedAt     DateTime?
-    posts        Post[]
-    messages     Message[]
-    roles        Role[]    @relation("UserRoles")
+    id                  Int             @id @default(autoincrement())
+    username            String          @unique
+    email               String?         @unique
+    role                UserRole        @default(USER)
+    tickets             Ticket[]        @relation("UserTickets")
+    messages            Message[]       @relation("UserMessages")
+    permissions         Permission[]    @default([])
+    isBanned            Boolean         @default(false)
+    bannedUntil         DateTime?
+    banReason           String?
+    createdAt           DateTime        @default(now())
+    updatedAt           DateTime        @updatedAt
+    SupportAgent        SupportAgent?
+    moderationReceived  ModerationLog[] @relation("ModeratedUser")
+    moderationPerformed ModerationLog[] @relation("ModeratorUser")
 }
 
-model Role {
-    id    String @id @unique @default(uuid())
-    name  Roles  @default(MEMBER)
-    users User[] @relation("UserRoles")
+model Ticket {
+    id             Int           @id @default(autoincrement())
+    title          String
+    description    String
+    status         TicketStatus  @default(OPEN)
+    userId         Int
+    user           User          @relation("UserTickets", fields: [userId], references: [id])
+    messages       Message[]     @relation("TicketMessages")
+    assignedTo     Int? // SupportAgent ID
+    assignedAgent  SupportAgent? @relation("AssignedAgentToTicket", fields: [assignedTo], references: [id])
+    priority       Int           @default(1) // Priority level (1 = low, 5 = high)
+    createdAt      DateTime      @default(now())
+    updatedAt      DateTime      @updatedAt
+    closedAt       DateTime? // Optional field for when the ticket is closed
+    supportAgentId Int?
+    SupportAgent   SupportAgent? @relation("SupportAgentToTicket", fields: [supportAgentId], references: [id])
+    isEscalated    Boolean       @default(false) // Indicates if the ticket is escalated
 }
 
-enum Roles {
-    ADMINISTRATOR
-    MODERATOR
-    SUPPORT
-    SPOTLIGHT
-    MEMBER
+model Message {
+    id         Int      @id @default(autoincrement())
+    content    String
+    ticketId   Int
+    ticket     Ticket   @relation("TicketMessages", fields: [ticketId], references: [id])
+    senderId   Int
+    sender     User     @relation("UserMessages", fields: [senderId], references: [id])
+    createdAt  DateTime @default(now())
+    isInternal Boolean  @default(false) // Indicates if the message is internal (e.g., agent notes)
+}
+
+model SupportAgent {
+    id        Int      @id @default(autoincrement())
+    userId    Int      @unique
+    user      User     @relation(fields: [userId], references: [id])
+    tickets   Ticket[] @relation("AssignedAgentToTicket")
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    isActive  Boolean  @default(true) // Indicates if the agent is currently active
+    Ticket    Ticket[] @relation("SupportAgentToTicket")
+}
+
+model ModerationLog {
+    id          Int       @id @default(autoincrement())
+    userId      Int
+    targetUser  User      @relation("ModeratedUser", fields: [userId], references: [id])
+    action      String
+    reason      String
+    createdAt   DateTime  @default(now())
+    expiresAt   DateTime?
+    performedBy Int?
+    moderator   User?     @relation("ModeratorUser", fields: [performedBy], references: [id])
 }

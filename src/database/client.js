@@ -1,7 +1,7 @@
 import { log } from '../functions/logger.js'
 import { PrismaClient } from '@prisma/client'
 import { withAccelerate } from '@prisma/extension-accelerate'
-import Indexie from '../class/client.js'
+import EchoBot from '../class/client.js'
 
 const prisma = new PrismaClient().$extends(withAccelerate())
 
@@ -18,7 +18,7 @@ export class db {
         }
 
         this.prisma = prisma
-        this.bot = Indexie
+        this.bot = EchoBot
 
         this.logs = {
             info: msg => log(msg, 'info'),
