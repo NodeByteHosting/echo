@@ -1,10 +1,7 @@
 import { ActivityType } from 'discord.js'
 
 export const setClientPresence = async client => {
-    const presences = [
-        { name: 'with threads', type: ActivityType.Playing },
-        { name: 'for new threads', type: ActivityType.Watching }
-    ]
+    const presences = [{ name: 'in the forest', type: ActivityType.Playing }]
 
     client.user.setStatus('idle')
 
