@@ -7,7 +7,7 @@ export default {
         description: 'Get the invite link for the bot',
         handlers: {
             cooldown: 15000,
-            permissions: []
+            permissions: ['ADMIN', 'DEVELOPER']
         }
     },
 
@@ -16,9 +16,11 @@ export default {
             await interaction.deferReply({ ephemeral: true })
 
             const fetch = await client.db.prisma.user.findFirst({
-                where: { snowflakeId: interaction.user.id },
-                select: { roles: true },
-                cacheStrategy: { ttl: 60 }
+                where: { id: BigInt(interaction.user.id) },
+                select: {
+                    role: true,
+                    permissions: true
+                }
             })
 
             if (!fetch) {
@@ -39,10 +41,8 @@ export default {
                     ]
                 })
             }
-
-            const userRoles = fetch.roles.map(role => role.name)
-
-            if (userRoles.length < 1 || !userRoles.includes('ADMINISTRATOR')) {
+            // Check if user is an admin based on role or permissions
+            if (fetch.role !== 'ADMIN' && !fetch.permissions.includes('MANAGE_ROLES')) {
                 return interaction.editReply({
                     embeds: [
                         new client.Gateway.EmbedBuilder()

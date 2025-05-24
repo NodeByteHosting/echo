@@ -18,12 +18,14 @@ export default {
             return
         }
 
+        // Get required permissions from command structure
         const requiredPerms = command.structure.handlers.permissions || []
 
         if (requiredPerms.length > 0) {
             const permHandler = new PermissionHandler(client.db.prisma)
+            // Convert Discord snowflake to BigInt for database query
             const user = await client.db.prisma.user.findFirst({
-                where: { id: interaction.user.id },
+                where: { id: BigInt(interaction.user.id) },
                 select: {
                     id: true,
                     role: true,
@@ -61,32 +63,47 @@ export default {
                             .setThumbnail(client.logo)
                     ]
                 })
-            }
-
+            } // Get default permissions for user's role and combine with their custom permissions
             const rolePerms = getDefaultPermissions(user.role)
             const userPerms = [...new Set([...rolePerms, ...user.permissions])]
-            const missingPerms = requiredPerms.filter(perm => !userPerms.includes(perm))
+
+            // Check each required permission
+            const missingPerms = []
+            for (const perm of requiredPerms) {
+                // Special handling for ADMINISTRATOR role
+                if (user.role === 'ADMIN') {
+                    continue
+                }
+                // Check if user has the required permission
+                if (!userPerms.includes(perm)) {
+                    missingPerms.push(perm)
+                }
+            }
 
             if (missingPerms.length > 0) {
                 return interaction.reply({
                     ephemeral: true,
                     embeds: [
                         new client.Gateway.EmbedBuilder()
-                            .setTitle('ERROR: Missing Permissions')
+                            .setTitle('Permission Denied')
                             .setColor(client.colors.error)
                             .setDescription('You lack the required permissions for this command.')
                             .addFields(
                                 {
                                     name: 'Required Permissions',
-                                    value: requiredPerms.join(', ')
+                                    value: requiredPerms.map(p => `\`${p}\``).join(', ')
                                 },
                                 {
                                     name: 'Your Role',
-                                    value: user.role
+                                    value: `\`${user.role}\``
                                 },
                                 {
                                     name: 'Your Permissions',
-                                    value: userPerms.join(', ') || 'None'
+                                    value: userPerms.length ? userPerms.map(p => `\`${p}\``).join(', ') : 'None'
+                                },
+                                {
+                                    name: 'Missing Permissions',
+                                    value: missingPerms.map(p => `\`${p}\``).join(', ')
                                 }
                             )
                             .setThumbnail(client.logo)
