@@ -1,12 +1,11 @@
-generator client {
-    provider = "prisma-client-js"
-}
+# Database Schema Documentation
 
-datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
-}
+This document describes the database schema used in the Echo bot system. The schema is implemented using Prisma and PostgreSQL.
 
+## Enums
+
+### UserRole
+```prisma
 enum UserRole {
     USER
     SUPPORT_AGENT
@@ -14,7 +13,10 @@ enum UserRole {
     DEVELOPER
     ADMIN
 }
+```
 
+### TicketStatus
+```prisma
 enum TicketStatus {
     OPEN
     IN_PROGRESS
@@ -22,7 +24,10 @@ enum TicketStatus {
     CLOSED
     ESCALATED
 }
+```
 
+### Permission
+```prisma
 enum Permission {
     // Ticket System
     CREATE_TICKET
@@ -70,7 +75,10 @@ enum Permission {
     RESTART_SERVERS
     MODIFY_SERVER_CONFIG
 }
+```
 
+### Transaction and Item Types
+```prisma
 enum TransactionType {
     PURCHASE
     SALE
@@ -107,96 +115,86 @@ enum AuditEvent {
     VOICE_EVENTS
     THREAD_EVENTS
 }
+```
 
-model AuditLog {
-    id          BigInt     @id @default(autoincrement())
-    guildId     String
-    eventType   AuditEvent
-    actionType  String
-    performedBy BigInt?
-    targetId    String?
-    targetType  String
-    changes     Json?
-    details     String?    @db.Text
-    createdAt   DateTime   @default(now())
+## Core Models
 
-    @@index([guildId])
-    @@index([eventType])
-    @@index([performedBy])
-    @@index([createdAt])
-}
-
-model GuildConfig {
-    id                 String       @id
-    name               String
-    logChannelId       String?
-    modLogChannelId    String?
-    supportCategoryId  String?
-    ticketLogChannelId String?
-    welcomeChannelId   String?
-    modRoleId          String?
-    adminRoleId        String?
-    supportRoleId      String?
-    auditEvents        AuditEvent[]
-    createdAt          DateTime     @default(now())
-    updatedAt          DateTime     @updatedAt
-}
-
+### User
+The central model representing a Discord user in the system.
+```prisma
 model User {
     id                  BigInt                @id
     username            String                @unique
     email               String?               @unique
     role                UserRole              @default(USER)
-    tickets             Ticket[]              @relation("UserTickets")
-    messages            Message[]             @relation("UserMessages")
     permissions         Permission[]          @default([])
     isBanned            Boolean               @default(false)
     bannedUntil         DateTime?
     banReason           String?
     createdAt           DateTime              @default(now())
     updatedAt           DateTime              @updatedAt
+
+    // Relations
+    tickets             Ticket[]              @relation("UserTickets")
+    messages            Message[]             @relation("UserMessages")
     SupportAgent        SupportAgent?
     moderationReceived  ModerationLog[]       @relation("ModeratedUser")
     moderationPerformed ModerationLog[]       @relation("ModeratorUser")
     profile             Profile?
-    economy             Economy?
-    level               Level?
-    statistics          Statistics?
-    achievements        Achievement[]
-    conversations       ConversationHistory[]
-    knowledgeEntries    KnowledgeBase[]
+    economy            Economy?
+    level              Level?
+    statistics         Statistics?
+    achievements       Achievement[]
+    conversations      ConversationHistory[]
+    knowledgeEntries   KnowledgeBase[]
 }
+```
 
+### Support System Models
+
+#### Ticket
+Represents a support ticket in the system.
+```prisma
 model Ticket {
     id             Int           @id @default(autoincrement())
     title          String
     description    String
     status         TicketStatus  @default(OPEN)
-    userId         BigInt
-    user           User          @relation("UserTickets", fields: [userId], references: [id])
-    messages       Message[]     @relation("TicketMessages")
-    assignedTo     BigInt?
-    assignedAgent  SupportAgent? @relation("AssignedAgentToTicket", fields: [assignedTo], references: [id])
     priority       Int           @default(1)
+    isEscalated    Boolean       @default(false)
     createdAt      DateTime      @default(now())
     updatedAt      DateTime      @updatedAt
     closedAt       DateTime?
-    supportAgentId BigInt?
-    SupportAgent   SupportAgent? @relation("SupportAgentToTicket", fields: [supportAgentId], references: [id])
-    isEscalated    Boolean       @default(false)
-}
 
+    // Relations
+    userId         BigInt
+    user           User          @relation("UserTickets", fields: [userId], references: [id])
+    messages       Message[]      @relation("TicketMessages")
+    assignedTo     BigInt?
+    assignedAgent  SupportAgent? @relation("AssignedAgentToTicket", fields: [assignedTo], references: [id])
+}
+```
+
+#### Message
+Messages within support tickets.
+```prisma
 model Message {
     id         Int      @id @default(autoincrement())
     content    String
+    isInternal Boolean  @default(false)
+    createdAt  DateTime @default(now())
+
+    // Relations
     ticketId   Int
     ticket     Ticket   @relation("TicketMessages", fields: [ticketId], references: [id])
     senderId   BigInt
     sender     User     @relation("UserMessages", fields: [senderId], references: [id])
-    createdAt  DateTime @default(now())
-    isInternal Boolean  @default(false)
 }
+```
 
+#### SupportAgent
+Represents users who can handle support tickets.
+```prisma
 model SupportAgent {
     id        BigInt   @id
     userId    BigInt   @unique
@@ -207,19 +205,13 @@ model SupportAgent {
     isActive  Boolean  @default(true)
     Ticket    Ticket[] @relation("SupportAgentToTicket")
 }
+```
 
-model ModerationLog {
-    id          Int       @id @default(autoincrement())
-    userId      BigInt
-    targetUser  User      @relation("ModeratedUser", fields: [userId], references: [id])
-    action      String
-    reason      String
-    createdAt   DateTime  @default(now())
-    expiresAt   DateTime?
-    performedBy BigInt?
-    moderator   User?     @relation("ModeratorUser", fields: [performedBy], references: [id])
-}
+### User Profile and Progress
 
+#### Profile
+User profile information and customization.
+```prisma
 model Profile {
     id              Int       @id @default(autoincrement())
     userId          BigInt    @unique
@@ -238,7 +230,43 @@ model Profile {
     createdAt       DateTime  @default(now())
     updatedAt       DateTime  @updatedAt
 }
+```
 
+#### Level
+User progression system.
+```prisma
+model Level {
+    id           Int       @id @default(autoincrement())
+    userId       BigInt    @unique
+    user         User      @relation(fields: [userId], references: [id])
+    level        Int       @default(1)
+    xp           Int       @default(0)
+    totalXp      Int       @default(0)
+    messageCount Int       @default(0)
+    lastMessage  DateTime?
+}
+```
+
+#### Achievement
+User achievements and rewards.
+```prisma
+model Achievement {
+    id          Int             @id @default(autoincrement())
+    name        String          @unique
+    description String          @db.Text
+    type        AchievementType
+    requirement Int
+    reward      Int
+    icon        String
+    users       User[]
+}
+```
+
+### Economy System
+
+#### Economy
+User's economic data.
+```prisma
 model Economy {
     id           Int           @id @default(autoincrement())
     userId       BigInt        @unique
@@ -251,7 +279,11 @@ model Economy {
     lastWeekly   DateTime?
     streak       Int           @default(0)
 }
+```
 
+#### Transaction
+Economic transaction history.
+```prisma
 model Transaction {
     id          Int             @id @default(autoincrement())
     economyId   Int
@@ -261,7 +293,11 @@ model Transaction {
     description String?
     createdAt   DateTime        @default(now())
 }
+```
 
+#### Item and Inventory
+Items that users can own.
+```prisma
 model Item {
     id          Int         @id @default(autoincrement())
     name        String      @unique
@@ -282,63 +318,13 @@ model Inventory {
     quantity  Int     @default(1)
     equipped  Boolean @default(false)
 }
+```
 
-model Level {
-    id           Int       @id @default(autoincrement())
-    userId       BigInt    @unique
-    user         User      @relation(fields: [userId], references: [id])
-    level        Int       @default(1)
-    xp           Int       @default(0)
-    totalXp      Int       @default(0)
-    messageCount Int       @default(0)
-    lastMessage  DateTime?
-}
+### Knowledge Base
 
-model Badge {
-    id          Int       @id @default(autoincrement())
-    name        String    @unique
-    description String    @db.Text
-    icon        String
-    profiles    Profile[]
-    selectedBy  Profile[] @relation("SelectedBadge")
-    rarity      Int       @default(1)
-}
-
-model Achievement {
-    id          Int             @id @default(autoincrement())
-    name        String          @unique
-    description String          @db.Text
-    type        AchievementType
-    requirement Int
-    reward      Int
-    icon        String
-    users       User[]
-}
-
-model Statistics {
-    id              Int      @id @default(autoincrement())
-    userId          BigInt   @unique
-    user            User     @relation(fields: [userId], references: [id])
-    commandsUsed    Int      @default(0)
-    ticketsClosed   Int      @default(0)
-    messagesDeleted Int      @default(0)
-    usersBanned     Int      @default(0)
-    usersUnbanned   Int      @default(0)
-    warningsGiven   Int      @default(0)
-    lastActive      DateTime @default(now())
-}
-
-model ConversationHistory {
-    id           Int      @id @default(autoincrement())
-    content      String   @db.Text
-    isAiResponse Boolean  @default(false)
-    timestamp    DateTime @default(now())
-    userId       BigInt // Using BigInt for Discord IDs
-    user         User     @relation(fields: [userId], references: [id])
-
-    @@index([userId])
-}
-
+#### KnowledgeBase
+Community knowledge base entries.
+```prisma
 model KnowledgeBase {
     id          Int      @id @default(autoincrement())
     title       String   @db.Text
@@ -358,3 +344,114 @@ model KnowledgeBase {
     @@index([category])
     @@index([createdBy])
 }
+```
+
+### Analytics and Logging
+
+#### Statistics
+User activity statistics.
+```prisma
+model Statistics {
+    id              Int      @id @default(autoincrement())
+    userId          BigInt   @unique
+    user            User     @relation(fields: [userId], references: [id])
+    commandsUsed    Int      @default(0)
+    ticketsClosed   Int      @default(0)
+    messagesDeleted Int      @default(0)
+    usersBanned     Int      @default(0)
+    usersUnbanned   Int      @default(0)
+    warningsGiven   Int      @default(0)
+    lastActive      DateTime @default(now())
+}
+```
+
+#### ModerationLog
+Moderation action history.
+```prisma
+model ModerationLog {
+    id          Int       @id @default(autoincrement())
+    userId      BigInt
+    targetUser  User      @relation("ModeratedUser", fields: [userId], references: [id])
+    action      String
+    reason      String
+    createdAt   DateTime  @default(now())
+    expiresAt   DateTime?
+    performedBy BigInt?
+    moderator   User?     @relation("ModeratorUser", fields: [performedBy], references: [id])
+}
+```
+
+#### AuditLog
+Server event audit logs.
+```prisma
+model AuditLog {
+    id          BigInt     @id @default(autoincrement())
+    guildId     String
+    eventType   AuditEvent
+    actionType  String
+    performedBy BigInt?
+    targetId    String?
+    targetType  String
+    changes     Json?
+    details     String?    @db.Text
+    createdAt   DateTime   @default(now())
+
+    @@index([guildId])
+    @@index([eventType])
+    @@index([performedBy])
+    @@index([createdAt])
+}
+```
+
+### Server Configuration
+
+#### GuildConfig
+Discord server configuration.
+```prisma
+model GuildConfig {
+    id                 String       @id
+    name               String
+    logChannelId       String?
+    modLogChannelId    String?
+    supportCategoryId  String?
+    ticketLogChannelId String?
+    welcomeChannelId   String?
+    modRoleId          String?
+    adminRoleId        String?
+    supportRoleId      String?
+    auditEvents        AuditEvent[]
+    createdAt          DateTime     @default(now())
+    updatedAt          DateTime     @updatedAt
+}
+```
+
+## Schema Management
+
+To update the database schema:
+
+1. Make changes to `prisma/schema.prisma`
+2. Run migrations:
+   ```bash
+   npx prisma migrate dev --name <migration-name>
+   ```
+3. Update generated types:
+   ```bash
+   npx prisma generate
+   ```
+
+## Indexes and Performance
+
+The schema includes several strategic indexes:
+- User lookups: username, email
+- Knowledge base: tags, category, createdBy
+- Audit logs: guildId, eventType, performedBy, createdAt
+- Relationships: Most foreign keys are indexed by default
+
+## Schema Conventions
+
+- IDs for Discord-related entities use `BigInt` (for Discord Snowflakes)
+- Other IDs use auto-incrementing `Int`
+- Timestamps use `DateTime`
+- Long text fields use `@db.Text`
+- JSON fields for flexible data storage
+- Explicit relation naming for clarity

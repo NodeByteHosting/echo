@@ -1,10 +1,19 @@
 import { Roles, Permissions } from '../configs/roles.config.js'
 
+/**
+ * Class for handling permission checks and user roles
+ */
 class PermissionHandler {
     constructor(prisma) {
         this.prisma = prisma
     }
 
+    /**
+     * Check if a user has a specific permission
+     * @param {string} userId The user's Discord ID
+     * @param {string} permission The permission to check
+     * @returns {Promise<boolean>} Whether the user has the permission
+     */
     async hasPermission(userId, permission) {
         const user = await this.prisma.user.findUnique({
             where: { id: userId },

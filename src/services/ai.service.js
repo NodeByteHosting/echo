@@ -1,67 +1,70 @@
 import { openai } from '@ai-sdk/openai'
-import { generateText } from 'ai'
 import { aiConfig } from '../configs/ai.config.js'
-import { WebSearchTool } from './tools/webSearch.js'
-import { MessageHistoryTool } from './tools/messageHistory.js'
-import { KnowledgeBaseTool } from './tools/knowledgeBase.js'
-import { ContextTool } from './tools/context.js'
-import { MessageFormattingTool } from './tools/messageFormatting.js'
+import { AIModel } from './aiModel.js'
+import { TechnicalSupportAgent } from './agents/support.js'
+import { ResearchAgent } from './agents/research.js'
+import { KnowledgeAgent } from './agents/knowledge.js'
+import { ConversationAgent } from './agents/conversation.js'
+import { CodeAnalysisAgent } from './agents/analysis.js'
 import { PerformanceTool } from './tools/performance.js'
 
-export class AIService {
+class AIService {
     constructor() {
-        this.config = this.normalizeConfig(aiConfig)
-        this.webSearch = new WebSearchTool()
-        this.messageHistory = new MessageHistoryTool()
-        this.knowledgeBase = new KnowledgeBaseTool()
-        this.context = new ContextTool()
-        this.messageFormatting = new MessageFormattingTool()
+        // Initialize AI model with wrapper - openai is the provider function
+        this.aiModel = new AIModel(openai)
+    }
+
+    initialize = () => {
+        // Initialize agents and performance monitoring
+        this.conversationAgent = new ConversationAgent(this.aiModel)
+        this.knowledgeAgent = new KnowledgeAgent(this.aiModel)
+        this.researchAgent = new ResearchAgent(this.aiModel)
+        this.supportAgent = new TechnicalSupportAgent(this.aiModel)
+        this.analysisAgent = new CodeAnalysisAgent(this.aiModel)
         this.performance = new PerformanceTool()
 
         if (!process.env.OPENAI_API_KEY) {
             throw new Error('OPENAI_API_KEY is not configured')
         }
-
-        this.model = openai.chat('gpt-4-turbo', {
-            compatibility: 'strict'
-        })
     }
 
-    normalizeConfig(config) {
-        return {
-            ...config,
-            systemPrompt:
-                typeof config.systemPrompt === 'string' ? config.systemPrompt : JSON.stringify(config.systemPrompt)
-        }
-    }
-
-    async generateResponse(message, userId, contextData = null) {
+    generateResponse = async (message, userId, contextData = null) => {
         try {
             this.performance.startTracking(message.id)
 
-            // Check if this is a response to a context question
-            const pendingContext = this.context.getPendingContext(userId)
-            if (pendingContext) {
-                await this.context.saveUserContext(userId, pendingContext.contextType, message)
-                this.context.clearPendingContext(userId)
-                return this.generateFullResponse(pendingContext.originalQuestion, userId)
+            // Try each agent in priority order
+            const agents = [this.supportAgent, this.analysisAgent, this.knowledgeAgent, this.conversationAgent]
+
+            for (const agent of agents) {
+                if (await agent.canHandle(message)) {
+                    // For knowledge and support agents, check if research is needed
+                    if (agent === this.knowledgeAgent || agent === this.supportAgent) {
+                        const agentResponse = await agent.process(message, userId, contextData)
+
+                        if (agentResponse.needsResearch) {
+                            // Get research results
+                            const researchResults = await this.researchAgent.process(agentResponse.searchQuery)
+
+                            // Add research to context
+                            const enhancedContext = {
+                                ...contextData,
+                                researchResults: researchResults.content,
+                                sourceResults: researchResults.sourceResults
+                            }
+
+                            // Retry with research results
+                            return agent.process(message, userId, enhancedContext)
+                        }
+
+                        return agentResponse
+                    }
+
+                    return agent.process(message, userId, contextData)
+                }
             }
 
-            // Get existing context for user and combine with any new context
-            const userContextData = this.context.getUserContext(userId)
-            const combinedContext = {
-                ...(userContextData || {}),
-                ...(contextData || {})
-            }
-
-            // Check if we need additional context
-            const neededContext = this.context.needsAdditionalContext(message, userId)
-            if (neededContext.length > 0 && !contextData) {
-                this.context.setPendingContext(userId, message, neededContext[0])
-                return this.context.generateContextQuestion(neededContext[0])
-            }
-
-            return this.generateFullResponse(message, userId, combinedContext)
+            // If no specialized agent can handle it, use conversation agent as fallback
+            return this.conversationAgent.process(message, userId, contextData)
         } catch (error) {
             this.performance.recordError('generate_response')
             console.error('Error generating AI response:', error)
@@ -74,110 +77,62 @@ export class AIService {
         }
     }
 
-    async generateFullResponse(message, userId, contextData = null) {
-        // Get conversation history
-        const history = await this.messageHistory.getRecentHistory(userId)
-
-        // Search knowledge base
-        const knowledgeResults = await this.knowledgeBase.searchKnowledge(message)
-
-        // Build enhanced prompt
-        const enhancedPrompt = await this.buildEnhancedPrompt(message, contextData, knowledgeResults)
-
-        // Validate prompt before sending
-        if (typeof enhancedPrompt !== 'string') {
-            throw new Error('Invalid prompt: system prompt must be a string')
+    regenerateResponse = async (message, contextData = null) => {
+        // Add a flag to indicate this is a regeneration request
+        const enhancedContext = {
+            ...contextData,
+            isRegeneration: true,
+            originalMessage: message.content
         }
 
-        // Prepare messages array with enhanced prompt and history
-        const messages = [
-            { role: 'system', content: enhancedPrompt },
-            ...history.filter(msg => msg && msg.content && typeof msg.content === 'string'),
-            { role: 'user', content: message }
-        ]
-        const { text: fullResponse } = await generateText({
-            model: this.model,
-            messages,
-            temperature: this.config.temperature,
-            maxTokens: this.config.maxTokens,
-            presencePenalty: 0.6,
-            frequencyPenalty: 0.5
-        })
-
-        // Save both user message and AI response to history
-        await this.messageHistory.saveMessage(userId, message, false)
-        await this.messageHistory.saveMessage(userId, fullResponse, true)
-
-        // Format the response for Discord
-        return this.messageFormatting.formatForDiscord(fullResponse)
+        return this.generateResponse(message.content, message.author.id, enhancedContext)
     }
 
-    async buildEnhancedPrompt(message, contextData, knowledgeResults) {
-        // Ensure we have a string prompt
-        let enhancedPrompt = this.config.systemPrompt
-        if (typeof enhancedPrompt !== 'string') {
-            console.error('System prompt is not a string:', enhancedPrompt)
-            enhancedPrompt = 'You are Echo, a helpful AI assistant.'
-        }
-
-        if (contextData) {
-            enhancedPrompt +=
-                '\n\nUser Context:\n' +
-                Object.entries(contextData)
-                    .map(([key, value]) => `${key}: ${value}`)
-                    .join('\n')
-        }
-
-        if (knowledgeResults.length > 0) {
-            enhancedPrompt +=
-                '\n\nRelevant knowledge base entries:\n' +
-                knowledgeResults
-                    .map(kr => `Topic: ${kr.title}\nCategory: ${kr.category || 'General'}\nContent: ${kr.content}`)
-                    .join('\n\n')
-        }
-
-        // Perform web search for technical queries
-        const webResults =
-            message.toLowerCase().includes('how to') ||
-            message.toLowerCase().includes('error') ||
-            message.toLowerCase().includes('problem')
-                ? await this.webSearch.search(message)
-                : []
-
-        if (webResults.length > 0) {
-            enhancedPrompt += '\n\nRelevant web information:\n' + this.webSearch.formatResults(webResults)
-        }
-
-        return enhancedPrompt
+    clearUserHistory = async userId => {
+        // Use conversation agent to clear user history
+        return this.conversationAgent.clearHistory(userId)
     }
 
-    async regenerateResponse(originalMessage) {
-        const history = await this.messageHistory.getRecentHistory(originalMessage.author.id)
-        const lastUserMessage = history.findLast(msg => msg.role === 'user')?.content
+    saveToKnowledgeBase = async (message, userId) => {
+        // Extract title from first line or generate one
+        const title = message.content.split('\n')[0].slice(0, 100)
 
-        if (!lastUserMessage) {
-            throw new Error('Could not find original message to regenerate')
-        }
-
-        return this.generateResponse(lastUserMessage, originalMessage.author.id)
+        // Use knowledge agent to save the entry
+        return this.knowledgeAgent.saveEntry(
+            title,
+            message.content,
+            'conversation', // Default category
+            ['discord', 'chat'], // Default tags
+            userId
+        )
     }
 
-    async refineResponse(originalMessage, refinement) {
-        const history = await this.messageHistory.getRecentHistory(originalMessage.author.id)
-        const lastResponse = history.findLast(msg => msg.role === 'assistant')?.content
-
-        if (!lastResponse) {
-            throw new Error('Could not find response to refine')
+    validateAgentResponse = response => {
+        // Common response validation
+        if (!response || typeof response !== 'object') {
+            throw new Error('Invalid agent response format')
         }
 
-        const refinementPrompt = `Please refine your previous response based on this feedback: "${refinement}"\n\nYour previous response was:\n${lastResponse}`
-        return this.generateResponse(refinementPrompt, originalMessage.author.id)
-    }
+        // Required fields for all responses
+        if (!('content' in response)) {
+            throw new Error('Agent response missing content field')
+        }
 
-    clearUserHistory(userId) {
-        this.context.clearUserHistory(userId)
+        // Optional fields validation
+        if ('needsResearch' in response && typeof response.needsResearch !== 'boolean') {
+            throw new Error('needsResearch must be a boolean')
+        }
+
+        if ('error' in response && typeof response.error !== 'string') {
+            throw new Error('error must be a string')
+        }
+
+        if ('searchQuery' in response && typeof response.searchQuery !== 'string') {
+            throw new Error('searchQuery must be a string')
+        }
+
+        return true
     }
 }
 
-// Create and export the singleton instance only
 export const aiService = new AIService()

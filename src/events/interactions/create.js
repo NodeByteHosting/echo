@@ -1,29 +1,34 @@
 import { Events } from 'discord.js'
 import { log } from '../../functions/logger.js'
-import { PermissionHandler } from '../../functions/permissions.js'
 import { getDefaultPermissions } from '../../functions/permissionUtils.js'
 
 const cooldown = new Map()
 
 export default {
     event: Events.InteractionCreate,
-
     run: async (client, interaction) => {
+        // Handle AI control buttons
+        if (interaction.isButton()) {
+            const { handleAIControls } = await import('../../handlers/aiControls.js')
+            const handled = await handleAIControls(interaction)
+            if (handled) {
+                return null
+            }
+        }
+
         if (interaction.isContextMenuCommand() || !interaction.isChatInputCommand() || !interaction.isCommand()) {
-            return
+            return null
         }
 
         const command = client.slash.get(interaction.commandName) || client.private.get(interaction.commandName)
         if (!command) {
-            return
+            return null
         }
 
         // Get required permissions from command structure
         const requiredPerms = command.structure.handlers.permissions || []
 
         if (requiredPerms.length > 0) {
-            const permHandler = new PermissionHandler(client.db.prisma)
-            // Convert Discord snowflake to BigInt for database query
             const user = await client.db.prisma.user.findFirst({
                 where: { id: BigInt(interaction.user.id) },
                 select: {
@@ -151,7 +156,7 @@ export default {
                         ephemeral: true
                     })
 
-                    return
+                    return null
                 }
                 cooldownFunction()
             } else {
@@ -171,5 +176,7 @@ export default {
                 content: 'An error occurred while executing this command!'
             })
         }
+
+        return null // Return value for async method
     }
 }

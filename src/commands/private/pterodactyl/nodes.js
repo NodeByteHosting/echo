@@ -99,22 +99,14 @@ export default {
             collector.on('end', async () => {
                 await interaction.editReply({ components: [] })
             })
+
+            return null
         } catch (error) {
             log(`An error occurred while fetching the nodes: ${error.message}`, 'error')
             log(`Stack Trace: ${error.stack}`, 'error')
 
-            return interaction.reply({
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle('Error: failed to fetch nodes')
-                        .setColor('#ff0000')
-                        .setDescription(error.message)
-                        .setTimestamp()
-                        .setFooter({
-                            text: client.footer,
-                            iconURL: client.logo
-                        })
-                ]
+            return interaction.editReply({
+                content: '❌ Failed to fetch node information.'
             })
         }
     }

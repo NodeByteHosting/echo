@@ -1,70 +1,106 @@
-# Echo — The Official Mascot of NodeByte Hosting
+# Echo — NodeByte's AI Assistant
 
 ![Echo Banner](./assets/echo-banner.png)
 
-**Echo** is our clever, tech-savvy fox mascot who represents the heart and soul of NodeByte Hosting. She’s here to make infrastructure feel a little more personal — from guiding users through dashboards, popping up in 404s, or keeping devs company in Discord.
+Echo is an advanced AI assistant powered by a sophisticated multi-agent system, designed to provide comprehensive support and automation for NodeByte's infrastructure and community.
 
-> “Reliable, friendly, and always watching over your servers — meet Echo.”
+## Key Features
 
----
+### AI Capabilities
+- **Multi-Agent System** - Specialized agents for conversation, knowledge, research, support, and code analysis
+- **Context-Aware** - Maintains conversation history and understands complex contexts
+- **Knowledge Management** - Dynamic knowledge base with automatic validation and updates
+- **Performance Optimized** - Efficient token usage, caching, and load balancing
 
-## About Echo
+### Technical Integration
+- **Database Integration** - Direct Prisma ORM integration with PostgreSQL
+- **Discord Integration** - Comprehensive Discord bot features and slash commands
+- **API Integration** - OpenAI and Tavily for AI and research capabilities
+- **Modern Stack** - Built with Bun runtime for optimal performance
 
-Echo is an anthropomorphic fox with a passion for tech, crafted in a modern, cartoon style to match NodeByte’s playful yet professional identity. From cheerful stickers to helpful error pages, she brings our brand to life across platforms.
+### Support Features
+- **Ticket Management** - Advanced support ticket handling and routing
+- **Code Analysis** - Automated code review and optimization suggestions
+- **Documentation** - Dynamic documentation updates and maintenance
+- **Performance Monitoring** - Request tracking and metrics collection
 
-**Key Traits:**
+For branding and asset information, see [assets/README.md](./assets/README.md).
 
--   Fluffy tail, expressive eyes, and a hoodie with violet accents
--   Confident, curious, and kind — the perfect digital sidekick
--   Designed for clean integration into UIs, stickers, and more
+## Documentation
 
----
+- [Setup Guide](./docs/setup.md) - Installation and configuration
+- [AI System](./docs/ai.md) - AI architecture and capabilities
+- [Commands](./docs/commands.md) - Available bot commands
+- [Database](./docs/database.md) - Database structure and management
+- [Architecture](./docs/architecture.md) - System architecture overview
+- [Migrations](./docs/migrations.md) - Database migration guides
+- [Schema](./docs/schema.md) - Database schema documentation
+- [Audit Logging](./docs/audit-logging.md) - Audit system details
 
-## Features
+## Quick Start
 
--   **Stickers & Emojis** — Expressive, Discord-ready PNGs
--   **404/500 Art** — Unique art for error pages with personality
--   **Animations (WIP)** — Light, clean motions for UI and social media
--   **Transparent & Themed Variations** — For all use cases
+1. Install dependencies:
+   ```bash
+   bun install
+   ```
 
----
+2. Configure environment:
+   ```env
+   DISCORD_TOKEN=your_bot_token
+   OPENAI_API_KEY=your_openai_key
+   TAVILY_API_KEY=your_tavily_key
+   DATABASE_URL=your_database_url
+   ```
 
-## Usage
+3. Initialize database:
+   ```bash
+   bunx prisma generate
+   bunx prisma migrate dev
+   ```
 
-You’re welcome to use Echo in projects **within the NodeByte ecosystem**. For licensing, requests, or to contribute ideas:
+4. Start the bot:
+   ```bash
+   bun start
+   ```
 
-> Reach out via [hello@nodebyte.host](mailto:hello@nodebyte.host) or open an issue!
+## Development
 
----
+Start in development mode with hot reload:
+```bash
+bun dev
+```
 
-## Gallery
+Format code:
+```bash
+bun run prettier --write .
+```
 
-| Preview                                     | Description                        |
-| ------------------------------------------- | ---------------------------------- |
-| ![Waving](./assets/echo-wave.png)           | Echo waving hello                  |
-| ![Sitting](./assets/echo-sitting.png)       | Echo sitting down                  |
-| ![Monitoring](./assets/echo-monitoring.png) | Echo monitoring stuff              |
-| ![OnCall](./assets/echo-oncall.png)         | Echo taking a support call         |
-| ![OnCall2](./assets/echo-oncall2.png)       | Echo taking a another support call |
-| ![Virtual](./assets/echo-vr.png)            | Echo playing VR                    |
-| ![NotFound](./assets/echo-404.png)          | Echo can not be found              |
-| ![NotFound](./assets/echo-500.png)          | Echo sees an error                 |
+## Architecture
 
----
+### Core Components
+- **Discord Bot** - Built with discord.js for reliable interaction
+- **Database** - PostgreSQL with Prisma for type-safe queries
+- **AI System** - Multi-agent system for intelligent responses
+- **Event System** - Comprehensive event handling and logging
+
+### Performance Features
+- **Rate Limiting** - Built-in rate limiting with per-user tracking
+- **Caching** - Efficient caching for frequently accessed data
+- **Load Balancing** - Smart distribution of AI processing
+- **Error Handling** - Comprehensive error handling with fallbacks
+
+For detailed architecture information, see [docs/architecture.md](./docs/architecture.md).
 
 ## Contributing
 
-Got an idea for a new Echo expression or pose? We’d love to see it!
+1. Fork the repository
+2. Create your feature branch
+3. Follow our coding standards
+4. Submit a pull request
 
--   Submit a feature request
--   Share design references
--   Or help us animate!
+## License
 
----
-
-## Licensing
-
-Echo is a **NodeByte Hosting** brand asset. Please do not use her outside NodeByte-related projects without permission.
+Echo is a **NodeByte Hosting** project. See [LICENSE](./LICENSE) for details.
 
 ---
 

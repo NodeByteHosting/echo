@@ -1,13 +1,11 @@
-import { filterSlash } from '../../../filters/slash.js'
-
 export default {
     structure: {
         name: 'invite',
-        category: 'Info',
-        description: 'Get the invite link for the bot',
+        description: 'Get the bot invite link.',
+        category: 'info',
         handlers: {
-            cooldown: 15000,
-            permissions: ['ADMIN', 'DEVELOPER']
+            cooldown: 5000,
+            permissions: []
         }
     },
 
