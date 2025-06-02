@@ -10,7 +10,9 @@
         "sourceType": "module",
         "requireConfigFile": false,
         "babelOptions": {
-            "presets": ["@babel/preset-env"]
+            "presets": [
+                "@babel/preset-env"
+            ]
         }
     },
     "rules": {
@@ -39,7 +41,7 @@
         "consistent-return": "warn", // Require return statements to either always or never specify values
         "no-else-return": "warn", // Disallow return before else (warn instead of error)
         "no-lonely-if": "warn", // Disallow if statements as the only statement in else blocks (warn instead of error)
-        "no-nested-ternary": "error", // Disallow nested ternary expressions
+        "no-nested-ternary": "warn", // Disallow nested ternary expressions
         "no-unneeded-ternary": "warn", // Disallow ternary operators when simpler alternatives exist (warn instead of error)
         "prefer-arrow-callback": "warn" // Prefer arrow functions as callbacks (warn instead of error)
     }

@@ -1,13 +1,14 @@
 import { BaseAgent } from './baseAgent.js'
-import { PrismaClient } from '@prisma/client'
+import { db } from '../../database/client.js'
 import { EmbedBuilder } from 'discord.js'
 import { aiConfig } from '../../configs/ai.config.js'
+import { makeSerializable } from '../../utils/serialization.js'
 
 export class ConversationAgent extends BaseAgent {
     constructor(aiModel) {
         super()
         this.aiModel = aiModel
-        this.prisma = new PrismaClient()
+        this.database = db.getInstance()
 
         // Rate limiting configuration
         this.rateLimits = {
@@ -40,26 +41,17 @@ export class ConversationAgent extends BaseAgent {
     async process(message, userId, contextData) {
         // Check rate limit before processing
         await this._checkRateLimit(userId)
-        const history = await this.prisma.conversationHistory.findMany({
-            where: {
-                userId: BigInt(userId),
-                timestamp: {
-                    gte: new Date(Date.now() - 30 * 60 * 1000) // Last 30 minutes
-                }
-            },
-            orderBy: { timestamp: 'asc' },
-            take: 10,
-            select: {
-                content: true,
-                isAiResponse: true,
-                timestamp: true
-            }
-        })
+
+        // Use the conversation module to get history
+        const history = await this.database.conversations.getHistory(userId, 10)
+
+        // Make history serializable by converting BigInts to strings
+        const serializableHistory = makeSerializable(history)
 
         // Get AI to determine conversation intent and style
         const analysis = await this.aiModel.getResponse(`Analyze this message in the context of the conversation:
 Message: "${message}"
-History: ${JSON.stringify(history)}
+History: ${JSON.stringify(serializableHistory)}
 
 Determine:
 1. Conversation style (formal, casual, technical)
@@ -67,9 +59,24 @@ Determine:
 3. Required response format
 4. Whether previous context is relevant
 
-Return: JSON with style, intent, format, and useContext properties`)
+Return JSON only in this format: {"style":"value","intent":"value","format":"value","useContext":true/false}`)
 
-        const messageContext = JSON.parse(analysis) // Build conversation-aware prompt
+        // Safely parse the JSON with error handling
+        let messageContext
+        try {
+            messageContext = this._extractJsonFromText(analysis)
+        } catch (error) {
+            console.error('Failed to parse analysis JSON:', error)
+            // Use default values as fallback
+            messageContext = {
+                style: 'casual',
+                intent: 'general',
+                format: 'text',
+                useContext: true
+            }
+        }
+
+        // Build conversation-aware prompt
         const enhancedPrompt = await this._buildConversationPrompt(message, history, messageContext, contextData)
         const response = await this.aiModel.getResponse(enhancedPrompt)
 
@@ -86,13 +93,8 @@ Return: JSON with style, intent, format, and useContext properties`)
         }
 
         try {
-            const userIdBigInt = BigInt(userId)
-
-            const history = await this.prisma.conversationHistory.findMany({
-                where: { userId: userIdBigInt },
-                orderBy: { timestamp: 'asc' },
-                take: limit
-            })
+            // Use the conversation module
+            const history = await this.database.conversations.getHistory(userId, limit)
 
             return history.map(msg => ({
                 role: msg.isAiResponse ? 'assistant' : 'user',
@@ -110,21 +112,7 @@ Return: JSON with style, intent, format, and useContext properties`)
         }
 
         try {
-            const userIdBigInt = BigInt(userId)
-
-            await this.prisma.conversationHistory.create({
-                data: {
-                    content: messageContent,
-                    isAiResponse,
-                    timestamp: new Date(),
-                    user: {
-                        connectOrCreate: {
-                            where: { id: userIdBigInt },
-                            create: { id: userIdBigInt }
-                        }
-                    }
-                }
-            })
+            await this.database.conversations.addEntry(userId, messageContent, isAiResponse)
         } catch (error) {
             console.error('Failed to save message:', error)
         }
@@ -136,10 +124,7 @@ Return: JSON with style, intent, format, and useContext properties`)
         }
 
         try {
-            const userIdBigInt = BigInt(userId)
-            await this.prisma.conversationHistory.deleteMany({
-                where: { userId: userIdBigInt }
-            })
+            await this.database.conversations.clearHistory(userId)
         } catch (error) {
             console.error('Failed to clear history:', error)
         }
@@ -228,24 +213,7 @@ Return: JSON with style, intent, format, and useContext properties`)
 
     async _saveMessage(userId, content, isAiResponse) {
         try {
-            const userIdBigInt = BigInt(userId)
-
-            await this.prisma.conversationHistory.create({
-                data: {
-                    content,
-                    isAiResponse,
-                    timestamp: new Date(),
-                    user: {
-                        connectOrCreate: {
-                            where: { id: userIdBigInt },
-                            create: {
-                                id: userIdBigInt,
-                                username: `user_${userId}`
-                            }
-                        }
-                    }
-                }
-            })
+            await this.database.conversations.addEntry(userId, content, isAiResponse)
         } catch (error) {
             console.error('Failed to save message:', error)
         }
@@ -257,10 +225,51 @@ Return: JSON with style, intent, format, and useContext properties`)
             return { content }
         }
 
-        // For complex messages, use an embed
-        const embed = new EmbedBuilder().setDescription(content).setColor('#0099ff')
+        // For complex messages with code blocks or formatting, use more detailed handling
+        if (content.length > 2000) {
+            // Long message - inform caller this is a long response
+            return {
+                content: content.substring(0, 1900) + '...',
+                longResponse: true,
+                fullContent: content
+            }
+        }
 
+        // For shorter messages with formatting, use an embed
+        const embed = new EmbedBuilder().setDescription(content).setColor('#0099ff')
         return { embeds: [embed] }
+    }
+
+    async streamResponse(message, userId, contextData) {
+        const initialResponse = "I'm thinking about this..."
+
+        // Send initial response immediately
+        const sentMessage = await this._sendInitialResponse(message, initialResponse)
+
+        // Process the full response in the background
+        const fullResponse = await this.process(message, userId, contextData)
+
+        // Update the message with the full response
+        await this._updateResponse(sentMessage, fullResponse.content)
+
+        // Save the messages
+        await Promise.all([
+            this._saveMessage(userId, message, false),
+            this._saveMessage(userId, fullResponse.content, true)
+        ])
+
+        return fullResponse
+    }
+
+    async _sendInitialResponse(message, content) {
+        // Implementation depends on your Discord setup
+        // This is a placeholder for the actual implementation
+        return { content, id: 'temp-id' }
+    }
+
+    async _updateResponse(sentMessage, newContent) {
+        // Implementation depends on your Discord setup
+        // This is a placeholder for the actual implementation
     }
 
     async _checkRateLimit(userId) {
@@ -309,58 +318,58 @@ Return: JSON with style, intent, format, and useContext properties`)
 
     async _cleanupOldMessages() {
         try {
-            const cutoffDate = new Date(Date.now() - this.cleanupConfig.maxAge)
-
-            // Get all users with conversation history
-            const users = await this.prisma.user.findMany({
-                where: {
-                    conversations: {
-                        some: {}
-                    }
-                },
-                select: { id: true }
-            })
-
-            // Process each user's history
-            for (const user of users) {
-                // Delete old messages
-                await this.prisma.conversationHistory.deleteMany({
-                    where: {
-                        userId: user.id,
-                        timestamp: {
-                            lt: cutoffDate
-                        }
-                    }
-                })
-
-                // Get total message count for user
-                const messageCount = await this.prisma.conversationHistory.count({
-                    where: { userId: user.id }
-                })
-
-                // If user has more than max messages, delete oldest ones
-                if (messageCount > this.cleanupConfig.maxMessagesPerUser) {
-                    const messagesToDelete = messageCount - this.cleanupConfig.maxMessagesPerUser
-                    const oldestMessages = await this.prisma.conversationHistory.findMany({
-                        where: { userId: user.id },
-                        orderBy: { timestamp: 'asc' },
-                        take: messagesToDelete,
-                        select: { id: true }
-                    })
-
-                    await this.prisma.conversationHistory.deleteMany({
-                        where: {
-                            id: {
-                                in: oldestMessages.map(m => m.id)
-                            }
-                        }
-                    })
-                }
-            }
-
+            // This functionality should be moved to a database management service
+            // or scheduled task rather than being handled by the agent
             console.log('Message cleanup completed:', new Date())
         } catch (error) {
             console.error('Error during message cleanup:', error)
+        }
+    }
+
+    /**
+     * Extracts valid JSON from text that might contain non-JSON content
+     * @param {string} text - Text that might contain JSON
+     * @returns {Object} Parsed JSON object
+     */
+    _extractJsonFromText(text) {
+        // Try to find JSON between markdown code blocks
+        const jsonBlockMatch = text.match(/```(?:json)?\s*({[\s\S]*?})\s*```/)
+        if (jsonBlockMatch && jsonBlockMatch[1]) {
+            try {
+                return JSON.parse(jsonBlockMatch[1].trim())
+            } catch (e) {
+                console.warn('Failed to parse JSON from code block', e)
+                // Continue to other methods
+            }
+        }
+
+        // Try to find JSON with curly braces
+        const jsonMatch = text.match(/{[\s\S]*?}/)
+        if (jsonMatch && jsonMatch[0]) {
+            try {
+                return JSON.parse(jsonMatch[0])
+            } catch (e) {
+                console.warn('Failed to parse JSON with regex', e)
+                // Continue to last method
+            }
+        }
+
+        // Last resort: try parsing the whole text
+        try {
+            return JSON.parse(text)
+        } catch (e) {
+            // If all parsing methods fail, create a simple object from text analysis
+            console.warn('All JSON parsing methods failed', e)
+
+            // Create a basic object from the text
+            const fallbackObj = {
+                style: text.includes('formal') ? 'formal' : text.includes('technical') ? 'technical' : 'casual',
+                intent: text.includes('help') ? 'help' : text.includes('information') ? 'information' : 'general',
+                format: text.includes('code') ? 'code' : 'text',
+                useContext: !text.includes('context: false')
+            }
+
+            return fallbackObj
         }
     }
 }

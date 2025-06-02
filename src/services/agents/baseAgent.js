@@ -1,3 +1,5 @@
+import { makeSerializable } from '../../utils/serialization.js'
+
 /**
  * Base class for AI agents, providing common functionality
  */
@@ -20,10 +22,12 @@ export class BaseAgent {
      * @returns {Promise<string[]>} Array of questions to ask
      */
     async determineContextNeeded(message, currentContext = {}) {
+        const serializableContext = makeSerializable(currentContext)
+
         const prompt = `As an AI agent, analyze this user message and current context to determine what additional information might be needed to provide the best response. Return only the essential questions, if any.
 
 User message: "${message}"
-Current context: ${JSON.stringify(currentContext)}
+Current context: ${JSON.stringify(serializableContext)}
 
 Return format: Array of questions or empty array if no context needed.`
 
@@ -42,10 +46,12 @@ Return format: Array of questions or empty array if no context needed.`
      * @returns {Promise<string>} The generated response
      */
     async generateResponse(message, context) {
+        const serializableContext = makeSerializable(context)
+
         const prompt = `As a specialized ${this.constructor.name}, help the user with their request.
 
 Available context:
-${JSON.stringify(context, null, 2)}
+${JSON.stringify(serializableContext, null, 2)}
 
 User message: "${message}"
 

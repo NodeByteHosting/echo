@@ -13,11 +13,13 @@ bunx prisma migrate dev --name <descriptive_name>
 ```
 
 Example migration names:
-- add_user_email
-- update_ticket_status_enum
-- create_achievements_table
+
+-   add_user_email
+-   update_ticket_status_enum
+-   create_achievements_table
 
 This will:
+
 1. Save your schema changes to a new migration file
 2. Execute all pending migrations
 3. Regenerate the Prisma Client
@@ -25,11 +27,13 @@ This will:
 ### Development vs Production
 
 In development:
+
 ```bash
 bunx prisma migrate dev
 ```
 
 In production:
+
 ```bash
 bunx prisma migrate deploy
 ```
@@ -43,38 +47,44 @@ Major schema updates will be documented here.
 ### Latest Changes (v3.0)
 
 1. **User Model**
-   - Added email field (optional)
-   - New roles and permissions
-   - Added relationships to new models
+
+    - Added email field (optional)
+    - New roles and permissions
+    - Added relationships to new models
 
 2. **Message Model**
-   - Added internal flag for staff-only messages
-   - New relationship to tickets
+
+    - Added internal flag for staff-only messages
+    - New relationship to tickets
 
 3. **Ticket Model**
-   - Added escalation support
-   - Enhanced agent assignment system
+    - Added escalation support
+    - Enhanced agent assignment system
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **Migration Conflicts**
-   If you get migration conflicts:   ```bash
+   If you get migration conflicts: ```bash
    bunx prisma migrate reset --force
-   ```
-   ⚠️ Warning: This will delete all data. Use only in development.
+
+    ```
+    ⚠️ Warning: This will delete all data. Use only in development.
+
+    ```
 
 2. **Schema Drift**
    If your database is out of sync:
-   ```bash
-   bunx prisma migrate diff
-   bunx prisma migrate reset
-   ```
 
-3. **Failed Migrations**   - Always backup your database before migrations
-   - Check migration status: `bunx prisma migrate status`
-   - Review migration history in `prisma/migrations`
+    ```bash
+    bunx prisma migrate diff
+    bunx prisma migrate reset
+    ```
+
+3. **Failed Migrations** - Always backup your database before migrations
+    - Check migration status: `bunx prisma migrate status`
+    - Review migration history in `prisma/migrations`
 
 ## Downgrading
 
@@ -92,7 +102,7 @@ If migrations fail:
 
 1. Backup database
 2. Reset migrations:
-   ```bash
-   bunx prisma migrate reset
-   ```
+    ```bash
+    bunx prisma migrate reset
+    ```
 3. Reapply migrations

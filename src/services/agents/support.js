@@ -1,19 +1,84 @@
 import { BaseAgent } from './baseAgent.js'
-import { PrismaClient, TicketStatus } from '@prisma/client'
 import { log } from '../../functions/logger.js'
+import { db } from '../../database/client.js'
 
 export class TechnicalSupportAgent extends BaseAgent {
     constructor(aiModel) {
         super()
         this.aiModel = aiModel
-        this.prisma = new PrismaClient()
+        this.database = db.getInstance()
+        this.ticketAgent = null // Will be set by AI service
+
+        // Improved technical indicators with relevance weights
+        this.technicalIndicators = {
+            // High priority support terms (likely need ticket creation)
+            high: ['broken', 'error', 'issue', 'problem', 'not working', 'fail', 'crash', 'bug', 'ticket', 'support'],
+            // Medium priority terms (may need ticket creation)
+            medium: [
+                'help me fix',
+                'troubleshoot',
+                'diagnose',
+                'resolve',
+                "doesn't work",
+                "isn't working",
+                "won't start"
+            ],
+            // Low priority terms (likely just knowledge/conversation)
+            low: ['how to', 'how do i', 'guide', 'tutorial', 'instructions', 'explain', 'understanding', 'learn']
+        }
+    }
+
+    /**
+     * Set the ticket agent reference
+     * @param {TicketAgent} agent - The ticket agent instance
+     */
+    setTicketAgent(agent) {
+        this.ticketAgent = agent
     }
 
     async canHandle(message) {
-        const technicalIndicators = ['how to', 'error', 'problem', 'issue', 'not working', 'help', 'fix', 'debug']
-
+        // First, do a quick check using indicator words
         const msg = message.toLowerCase()
-        return technicalIndicators.some(indicator => msg.includes(indicator))
+
+        // Check if this is clearly a support request needing a ticket
+        const isHighPriority = this.technicalIndicators.high.some(term => msg.includes(term))
+
+        // Check if this is a medium priority request
+        const isMediumPriority = this.technicalIndicators.medium.some(term => msg.includes(term))
+
+        // Check if this is likely just a knowledge request
+        const isLowPriority = this.technicalIndicators.low.some(term => msg.includes(term))
+
+        // Explicit ticket requests should be handled by TicketAgent
+        if (msg.includes('ticket') || msg.includes('open ticket') || msg.includes('create ticket')) {
+            return false
+        }
+
+        // If it's high priority or (medium priority without low priority indicators)
+        // we can handle it as a support request
+        if (isHighPriority || (isMediumPriority && !isLowPriority)) {
+            return true
+        }
+
+        // For ambiguous cases, use AI to determine
+        if (isMediumPriority || isLowPriority) {
+            // Ask AI if this requires technical support
+            const response = await this.aiModel
+                .getResponse(`Determine if this message requires technical support or just knowledge sharing:
+Message: "${message}"
+
+Consider:
+1. Is the user reporting a specific technical problem?
+2. Are they describing something broken or not working?
+3. Do they explicitly ask for support or help fixing something?
+4. Is this just a request for information or explanation?
+
+Return ONLY: "support" if they need technical support, or "knowledge" if they just need information.`)
+
+            return response.toLowerCase().includes('support')
+        }
+
+        return false
     }
 
     async needsAdditionalContext(message, contextData) {
@@ -32,7 +97,7 @@ export class TechnicalSupportAgent extends BaseAgent {
         return null
     }
 
-    async process(message, userId, contextData = null) {
+    async process(message, userId, contextData) {
         try {
             // Check if we need additional context
             const neededContext = await this.needsAdditionalContext(message, contextData)
@@ -43,8 +108,35 @@ export class TechnicalSupportAgent extends BaseAgent {
                 }
             }
 
-            // Create or update support ticket
-            const ticket = await this.handleTicket(message, userId)
+            // Determine if this needs a ticket
+            const needsTicket = await this._needsTicketCreation(message)
+
+            let ticket = null
+            let ticketResponse = null
+
+            // Only create/update ticket if truly needed and ticket agent is available
+            if (needsTicket && this.ticketAgent) {
+                // Check for existing ticket first
+                ticket = await this.ticketAgent.checkExistingTicket(userId)
+
+                if (!ticket) {
+                    // Let the ticket agent handle ticket creation
+                    const analysis = {
+                        priority: this._assessSeverity(message),
+                        category: 'technical',
+                        summary: `Technical Support: ${message.slice(0, 50)}...`,
+                        requiredInfo: [],
+                        possibleSolutions: []
+                    }
+
+                    ticket = await this.ticketAgent.createTicketOnBehalf(message, userId, analysis)
+                    ticketResponse = `\n\n> 🎫 I've created a support ticket (#${ticket.id}) for this issue.`
+                } else {
+                    // Add message to existing ticket
+                    await this.ticketAgent.addMessageToTicket(ticket.id, userId, message)
+                    ticketResponse = `\n\n> 🎫 I've added this to your existing support ticket (#${ticket.id}).`
+                }
+            }
 
             // Check knowledge base first
             const knowledgeResponse = await this.aiModel.getResponse({
@@ -54,7 +146,7 @@ export class TechnicalSupportAgent extends BaseAgent {
                 2. Is it a common issue or question?
                 3. Would this be in a knowledge base or FAQ?
                 
-                Return true or false`,
+                Return: true or false`,
                 context: { template: 'knowledge_check' }
             })
 
@@ -87,8 +179,8 @@ export class TechnicalSupportAgent extends BaseAgent {
                         context: {
                             userContext: {
                                 ...contextData,
-                                ticketId: ticket.id,
-                                ticketStatus: ticket.status
+                                ticketId: ticket?.id,
+                                ticketStatus: ticket?.status
                             },
                             template: 'technical_support'
                         }
@@ -96,145 +188,106 @@ export class TechnicalSupportAgent extends BaseAgent {
                 }
             }
 
-            // Add AI response to ticket
-            await this.prisma.message.create({
-                data: {
-                    content: response,
-                    ticketId: ticket.id,
-                    senderId: userId,
-                    isInternal: false
-                }
-            })
+            // Add ticket info to response if a ticket was created
+            if (ticketResponse && response) {
+                response += ticketResponse
+            }
 
-            return this.formatTechnicalResponse(message, response, ticket)
+            return {
+                content: response,
+                type: 'technical_support',
+                metadata: ticket
+                    ? {
+                          ticketId: ticket.id,
+                          status: ticket.status,
+                          assignedTo: ticket.assignedTo
+                      }
+                    : null
+            }
         } catch (error) {
             log('Error in TechnicalSupportAgent process:', 'error', error)
             throw error
         }
     }
 
-    async handleTicket(message, userId) {
-        try {
-            // Check for existing open ticket
-            const existingTicket = await this.prisma.ticket.findFirst({
-                where: {
-                    userId: BigInt(userId),
-                    status: {
-                        in: [TicketStatus.OPEN, TicketStatus.IN_PROGRESS]
-                    }
-                }
-            })
+    /**
+     * Determine if a message needs ticket creation
+     */
+    async _needsTicketCreation(message) {
+        const msg = message.toLowerCase()
 
-            if (existingTicket) {
-                // Add new message to existing ticket
-                await this.prisma.message.create({
-                    data: {
-                        content: message,
-                        ticketId: existingTicket.id,
-                        senderId: BigInt(userId),
-                        isInternal: false
-                    }
-                })
-                return existingTicket
-            }
-
-            // Create new ticket if none exists
-            const newTicket = await this.prisma.ticket.create({
-                data: {
-                    title: `Support Request: ${message.slice(0, 50)}...`,
-                    description: message,
-                    userId: BigInt(userId),
-                    status: TicketStatus.OPEN,
-                    messages: {
-                        create: {
-                            content: message,
-                            senderId: BigInt(userId),
-                            isInternal: false
-                        }
-                    }
-                },
-                include: {
-                    messages: true,
-                    user: true
-                }
-            })
-
-            // Try to auto-assign to an available agent
-            const availableAgent = await this.prisma.supportAgent.findFirst({
-                where: {
-                    isActive: true,
-                    tickets: {
-                        every: {
-                            status: {
-                                in: [TicketStatus.RESOLVED, TicketStatus.CLOSED]
-                            }
-                        }
-                    }
-                }
-            })
-
-            if (availableAgent) {
-                return await this.prisma.ticket.update({
-                    where: { id: newTicket.id },
-                    data: {
-                        status: TicketStatus.IN_PROGRESS,
-                        assignedTo: availableAgent.id
-                    }
-                })
-            }
-
-            return newTicket
-        } catch (error) {
-            log('Error in handleTicket:', 'error', error)
-            throw error
+        // Auto-create ticket if user explicitly mentions ticket
+        if (msg.includes('ticket') || msg.includes('create ticket') || msg.includes('open ticket')) {
+            return true
         }
+
+        // Check if message has high severity indicators
+        const severity = this._assessSeverity(message)
+        if (severity >= 4) {
+            return true
+        }
+
+        // For medium severity, ask AI
+        if (severity >= 2) {
+            const response = await this.aiModel
+                .getResponse(`Determine if this technical issue requires creating a support ticket:
+Message: "${message}"
+
+Consider:
+1. Is this a critical error or problem?
+2. Does this appear to be a system failure?
+3. Is the user unable to use a service?
+4. Does this require staff intervention?
+5. Could this be answered with documentation?
+
+Return ONLY: "ticket" if a support ticket should be created, or "no-ticket" if it's just a general question.`)
+
+            return response.toLowerCase().includes('ticket')
+        }
+
+        return false
     }
 
-    async formatTechnicalResponse(message, response, ticket) {
-        const isError = message.toLowerCase().includes('error')
-        let formattedResponse = response
+    /**
+     * Assess the severity of a support request
+     */
+    _assessSeverity(message) {
+        const msg = message.toLowerCase()
+        let score = 0
 
-        if (isError) {
-            formattedResponse += '\n\n> 🦊 Quick Troubleshooting Tips:\n'
-            formattedResponse += '> • Check logs for detailed error messages\n'
-            formattedResponse += '> • Verify permissions and configurations\n'
-            formattedResponse += '> • Try restarting the service'
-        }
-
-        formattedResponse += `\n\n> 🎫 Ticket #${ticket.id} - Status: ${ticket.status}`
-        if (ticket.assignedTo) {
-            formattedResponse += '\n> An agent has been assigned to help you.'
-        } else {
-            formattedResponse += '\n> A support agent will be with you shortly.'
-        }
-
-        return {
-            content: formattedResponse,
-            type: 'technical_support',
-            metadata: {
-                ticketId: ticket.id,
-                status: ticket.status,
-                assignedTo: ticket.assignedTo
+        // Critical terms
+        const criticalTerms = ['urgent', 'critical', 'emergency', 'broken', 'crashed', 'down', 'not working at all']
+        for (const term of criticalTerms) {
+            if (msg.includes(term)) {
+                score += 2
             }
         }
+
+        // Error indicators
+        const errorTerms = ['error', 'exception', 'fail', 'failed', 'bug', 'issue']
+        for (const term of errorTerms) {
+            if (msg.includes(term)) {
+                score += 1
+            }
+        }
+
+        // Reduce score for knowledge-seeking patterns
+        const knowledgeTerms = ['how to', 'how do i', 'what is', 'explain', 'understand']
+        for (const term of knowledgeTerms) {
+            if (msg.includes(term)) {
+                score -= 1
+            }
+        }
+
+        return Math.max(0, Math.min(5, score))
     }
 
     async searchKnowledgeBase(query) {
         try {
-            // Search for relevant knowledge base entries
-            const entries = await this.prisma.knowledgeBase.findMany({
-                where: {
-                    OR: [
-                        { title: { contains: query, mode: 'insensitive' } },
-                        { content: { contains: query, mode: 'insensitive' } },
-                        { tags: { hasSome: query.toLowerCase().split(' ') } }
-                    ],
-                    isVerified: true
-                },
-                orderBy: {
-                    useCount: 'desc'
-                },
-                take: 3
+            // Use knowledge module instead of direct Prisma queries
+            const entries = await this.database.knowledge.search(query, {
+                verified: true,
+                limit: 3
             })
 
             if (entries.length === 0) {
@@ -242,14 +295,7 @@ export class TechnicalSupportAgent extends BaseAgent {
             }
 
             // Update usage count for found entries
-            await Promise.all(
-                entries.map(entry =>
-                    this.prisma.knowledgeBase.update({
-                        where: { id: entry.id },
-                        data: { useCount: { increment: 1 } }
-                    })
-                )
-            )
+            await Promise.all(entries.map(entry => this.database.knowledge.incrementUseCount(entry.id)))
 
             // Format knowledge base response
             const response = [

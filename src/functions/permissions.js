@@ -1,187 +1,190 @@
-import { Roles, Permissions } from '../configs/roles.config.js'
+import { DEFAULT_PERMISSIONS, validatePermissionChange } from './permissionUtils.js'
 
 /**
- * Class for handling permission checks and user roles
+ * Manages permission checking and utility functions for user permissions
  */
-class PermissionHandler {
+export class PermissionHandler {
     constructor(prisma) {
         this.prisma = prisma
+
+        // Permission categories for grouping in UI
+        this.permissionCategories = {
+            'Tickets': [
+                'CREATE_TICKET',
+                'VIEW_TICKET',
+                'CLOSE_TICKET',
+                'ASSIGN_TICKET',
+                'MANAGE_TICKETS',
+                'ESCALATE_TICKET',
+                'VIEW_ALL_TICKETS'
+            ],
+            'User Management': [
+                'BAN_USER',
+                'UNBAN_USER',
+                'WARN_USER',
+                'MANAGE_ROLES',
+                'VIEW_USER_INFO',
+                'MANAGE_USER_PROFILE'
+            ],
+            'Knowledge Base': ['VIEW_KB', 'CREATE_KB', 'EDIT_KB', 'DELETE_KB', 'VERIFY_KB'],
+            'System': [
+                'VIEW_SYSTEM_STATUS',
+                'VIEW_METRICS',
+                'MANAGE_BOT_SETTINGS',
+                'VIEW_SERVER_STATUS',
+                'RESTART_SERVERS',
+                'MODIFY_SERVER_CONFIG'
+            ],
+            'Support': ['PROVIDE_SUPPORT', 'VIEW_SUPPORT_QUEUE', 'MANAGE_SUPPORT_AGENTS'],
+            'Moderation': ['DELETE_MESSAGES', 'TIMEOUT_USER', 'VIEW_AUDIT_LOGS', 'MANAGE_THREADS'],
+            'Server Management': ['MANAGE_PTERODACTYL', 'VIEW_SERVER_STATUS', 'RESTART_SERVERS', 'MODIFY_SERVER_CONFIG']
+        }
+    }
+
+    /**
+     * Get the default permissions for a role
+     * @param {string} role - The role
+     * @returns {Array<string>} Array of permission names
+     */
+    async getDefaultPermissions(role) {
+        return DEFAULT_PERMISSIONS[role] || []
     }
 
     /**
      * Check if a user has a specific permission
-     * @param {string} userId The user's Discord ID
-     * @param {string} permission The permission to check
+     * @param {BigInt} userId - The user ID
+     * @param {string} permission - The permission to check
      * @returns {Promise<boolean>} Whether the user has the permission
      */
     async hasPermission(userId, permission) {
+        // FIX: Use select for scalar fields
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
-            select: { permissions: true, role: true }
-        })
-
-        if (!user) {
-            return false
-        } // Admin has all permissions
-        if (user.role === Roles.ADMIN) {
-            return true
-        }
-
-        // Get default permissions for the user's role
-        const { getDefaultPermissions } = await import('./permissionUtils.js')
-        const rolePerms = getDefaultPermissions(user.role)
-
-        // Combine role permissions with user's custom permissions
-        const allPerms = [...new Set([...rolePerms, ...user.permissions])]
-
-        // Check if user has the required permission
-        return allPerms.includes(permission)
-    }
-
-    async hasPermissions(userId, requiredPermissions) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { permissions: true, role: true }
-        })
-
-        if (!user) {
-            return { hasAll: false, missing: requiredPermissions }
-        }
-
-        // Admin has all permissions
-        if (user.role === 'ADMIN') {
-            return { hasAll: true, missing: [] }
-        }
-
-        // Get default permissions for the user's role
-        const { getDefaultPermissions } = await import('./permissionUtils.js')
-        const rolePerms = getDefaultPermissions(user.role)
-
-        // Combine role permissions with user's custom permissions
-        const allPerms = [...new Set([...rolePerms, ...user.permissions])]
-
-        // Check which permissions are missing
-        const missingPerms = requiredPermissions.filter(perm => !allPerms.includes(perm))
-
-        return {
-            hasAll: missingPerms.length === 0,
-            missing: missingPerms
-        }
-    }
-    async canManageTicket(userId, ticketId) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { role: true, permissions: true, SupportAgent: true }
+            select: { role: true, permissions: true }
         })
 
         if (!user) {
             return false
         }
 
-        // Check for admin or explicit management permission
-        if (user.role === 'ADMIN' || (await this.hasPermission(userId, 'MANAGE_TICKETS'))) {
+        // Check role-based permissions
+        const rolePermissions = DEFAULT_PERMISSIONS[user.role] || []
+        if (rolePermissions.includes(permission)) {
             return true
         }
 
-        // Support agents need PROVIDE_SUPPORT permission
-        if (user.role === 'SUPPORT_AGENT' && (await this.hasPermission(userId, 'PROVIDE_SUPPORT'))) {
-            const ticket = await this.prisma.ticket.findUnique({
-                where: { id: ticketId },
-                select: {
-                    assignedTo: true,
-                    status: true
+        // Check custom permissions
+        const customPermissions = user.permissions || []
+        return customPermissions.includes(permission)
+    }
+
+    /**
+     * Check if a user has all of the specified permissions
+     * @param {BigInt} userId - The user ID
+     * @param {Array<string>} permissions - The permissions to check
+     * @returns {Promise<boolean>} Whether the user has all permissions
+     */
+    async hasAllPermissions(userId, permissions) {
+        const effectivePermissions = await this.getEffectivePermissions(userId)
+        return permissions.every(permission => effectivePermissions.includes(permission))
+    }
+
+    /**
+     * Check if a user has any of the specified permissions
+     * @param {BigInt} userId - The user ID
+     * @param {Array<string>} permissions - The permissions to check
+     * @returns {Promise<boolean>} Whether the user has any of the permissions
+     */
+    async hasAnyPermission(userId, permissions) {
+        const effectivePermissions = await this.getEffectivePermissions(userId)
+        return permissions.some(permission => effectivePermissions.includes(permission))
+    }
+
+    /**
+     * Get all effective permissions for a user
+     * @param {BigInt} userId - The user ID
+     * @returns {Promise<Array<string>>} Array of effective permissions
+     */
+    async getEffectivePermissions(userId) {
+        // FIX: Use select for scalar fields
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { role: true, permissions: true }
+        })
+
+        if (!user) {
+            return []
+        }
+
+        const rolePermissions = DEFAULT_PERMISSIONS[user.role] || []
+        const customPermissions = user.permissions || []
+
+        // Combine and deduplicate permissions
+        return [...new Set([...rolePermissions, ...customPermissions])]
+    }
+
+    /**
+     * Group permissions by category for better UI display
+     * @param {Array<string>} permissions - List of permissions
+     * @returns {Object} Permissions grouped by category
+     */
+    groupPermissionsByCategory(permissions) {
+        const result = {}
+
+        // Initialize categories
+        for (const category of Object.keys(this.permissionCategories)) {
+            result[category] = []
+        }
+
+        // Add permissions to their categories
+        for (const permission of permissions) {
+            let found = false
+
+            // Find which category this permission belongs to
+            for (const [category, perms] of Object.entries(this.permissionCategories)) {
+                if (perms.includes(permission)) {
+                    result[category].push(permission)
+                    found = true
+                    break
                 }
-            })
+            }
 
-            // Can manage if assigned or ticket is unassigned
-            return !ticket?.assignedTo || ticket.assignedTo === user.SupportAgent?.id
+            // If not found in any category, add to Other
+            if (!found) {
+                if (!result['Other']) {
+                    result['Other'] = []
+                }
+                result['Other'].push(permission)
+            }
         }
 
-        // Moderators can manage escalated tickets
-        if (user.role === 'MODERATOR' && (await this.hasPermission(userId, 'MANAGE_TICKETS'))) {
-            const ticket = await this.prisma.ticket.findUnique({
-                where: { id: ticketId },
-                select: { status: true }
-            })
-            return ticket?.status === 'ESCALATED'
-        }
-
-        return false
+        // Remove empty categories
+        return Object.fromEntries(Object.entries(result).filter(([_, perms]) => perms.length > 0))
     }
 
-    async canModerateUser(moderatorId, targetUserId) {
-        const moderator = await this.prisma.user.findUnique({
-            where: { id: moderatorId },
-            select: { role: true }
+    /**
+     * Helper method to check for a permission or a role
+     * @param {BigInt} userId - The user ID
+     * @param {string} permission - The permission to check
+     * @param {string} role - The role to check (alternative to permission)
+     * @returns {Promise<boolean>} Whether the user has the permission or role
+     */
+    async checkPermissionOrRole(userId, permission, role) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { role: true, permissions: true }
         })
 
-        if (!moderator) {
+        if (!user) {
             return false
         }
-        if (moderator.role === 'ADMIN') {
+
+        // Check role first
+        if (role && user.role === role) {
             return true
         }
-        if (moderator.role !== 'MODERATOR') {
-            return false
-        }
 
-        // Moderators can't moderate other moderators or admins
-        const target = await this.prisma.user.findUnique({
-            where: { id: targetUserId },
-            select: { role: true }
-        })
-
-        return !['ADMIN', 'MODERATOR'].includes(target.role)
-    }
-    getRoleHierarchy(role) {
-        const hierarchy = {
-            ADMIN: 4,
-            DEVELOPER: 3,
-            MODERATOR: 2,
-            SUPPORT_AGENT: 1,
-            USER: 0
-        }
-        return hierarchy[role] || 0
-    }
-
-    async validatePermission(userId, requiredPermission) {
-        const hasPermission = await this.hasPermission(userId, requiredPermission)
-        if (!hasPermission) {
-            // Get user's actual permissions for better error message
-            const user = await this.prisma.user.findUnique({
-                where: { id: userId },
-                select: { permissions: true, role: true }
-            })
-
-            const { getDefaultPermissions } = await import('./permissionUtils.js')
-            const rolePerms = getDefaultPermissions(user.role)
-            const allPerms = [...new Set([...rolePerms, ...(user?.permissions || [])])]
-
-            throw new Error(
-                `Missing required permission: ${requiredPermission}. Current permissions: ${allPerms.join(', ')}`
-            )
-        }
-    }
-
-    async validatePermissions(userId, requiredPermissions) {
-        const result = await this.hasPermissions(userId, requiredPermissions)
-        if (!result.hasAll) {
-            throw new Error(`Missing required permissions: ${result.missing.join(', ')}`)
-        }
+        // Then check permission
+        return await this.hasPermission(userId, permission)
     }
 }
-
-// Permission decorators for route handlers
-const requirePermission = permission => {
-    return async (req, res, next) => {
-        try {
-            const handler = new PermissionHandler(req.prisma)
-            await handler.validatePermission(req.user.id, permission)
-            next()
-        } catch (error) {
-            res.status(403).json({ error: error.message })
-        }
-    }
-}
-
-export { PermissionHandler, requirePermission }

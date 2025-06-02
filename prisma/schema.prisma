@@ -144,7 +144,8 @@ model GuildConfig {
 
 model User {
     id                  BigInt                @id
-    username            String                @unique
+    username            String                @default("unknown_user")
+    displayName         String?               @default("Unknown User")
     email               String?               @unique
     role                UserRole              @default(USER)
     tickets             Ticket[]              @relation("UserTickets")
@@ -168,22 +169,35 @@ model User {
 }
 
 model Ticket {
-    id             Int           @id @default(autoincrement())
+    id             Int             @id @default(autoincrement())
     title          String
     description    String
-    status         TicketStatus  @default(OPEN)
+    status         TicketStatus    @default(OPEN)
     userId         BigInt
-    user           User          @relation("UserTickets", fields: [userId], references: [id])
-    messages       Message[]     @relation("TicketMessages")
+    user           User            @relation("UserTickets", fields: [userId], references: [id])
+    messages       Message[]       @relation("TicketMessages")
     assignedTo     BigInt?
-    assignedAgent  SupportAgent? @relation("AssignedAgentToTicket", fields: [assignedTo], references: [id])
-    priority       Int           @default(1)
-    createdAt      DateTime      @default(now())
-    updatedAt      DateTime      @updatedAt
+    assignedAgent  SupportAgent?   @relation("AssignedAgentToTicket", fields: [assignedTo], references: [id])
+    priority       Int             @default(1)
+    createdAt      DateTime        @default(now())
+    updatedAt      DateTime        @updatedAt
     closedAt       DateTime?
     supportAgentId BigInt?
-    SupportAgent   SupportAgent? @relation("SupportAgentToTicket", fields: [supportAgentId], references: [id])
-    isEscalated    Boolean       @default(false)
+    SupportAgent   SupportAgent?   @relation("SupportAgentToTicket", fields: [supportAgentId], references: [id])
+    isEscalated    Boolean         @default(false)
+    threadId       String? // Discord thread ID
+    category       String? // Ticket category 
+    resolution     String? // Resolution notes
+    feedback       TicketFeedback?
+}
+
+model TicketFeedback {
+    id        Int      @id @default(autoincrement())
+    ticketId  Int      @unique
+    ticket    Ticket   @relation(fields: [ticketId], references: [id])
+    rating    Int // 1-5 rating
+    comment   String?  @db.Text
+    createdAt DateTime @default(now())
 }
 
 model Message {

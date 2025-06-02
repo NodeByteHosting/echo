@@ -1,89 +1,159 @@
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'
 import { aiService } from '../services/ai.service.js'
 import { createResponseControls } from '../components/responseControls.js'
 
 export async function handleAIControls(interaction) {
-    // Only handle AI control buttons
-    if (!interaction.customId.startsWith('ai_')) {
+    if (!interaction.isButton()) {
         return false
     }
 
-    await interaction.deferUpdate()
+    const customId = interaction.customId
+    if (!customId.startsWith('ai_')) {
+        return false
+    }
 
-    const originalMessage = interaction.message
-    const action = interaction.customId.replace('ai_', '')
+    // Acknowledge the interaction immediately for better UX
+    await interaction.deferUpdate().catch(() => {})
 
     try {
-        switch (action) {
-            case 'regenerate': {
-                // Get the original message that triggered the AI
-                const originalContent = originalMessage.reference
-                    ? (await originalMessage.fetchReference()).content
-                    : originalMessage.content
+        // Get the message that contains the button
+        const message = interaction.message
+        const originalMessage = message.reference ? await message.fetchReference().catch(() => null) : null
 
-                // Regenerate the response
-                const response = await aiService.regenerateResponse(originalContent, interaction.user.id)
+        if (!originalMessage && !['ai_clear', 'ai_save'].includes(customId)) {
+            await interaction.followUp({
+                content: "I couldn't find the original message to regenerate or refine the response.",
+                ephemeral: true
+            })
+            return true
+        }
 
-                // Format response content
-                const formattedResponse = Array.isArray(response.content) ? response.content : [response.content]
-
-                // Update the message with new response
-                await originalMessage.edit({
-                    content: formattedResponse[0],
-                    components: [createResponseControls()]
-                })
-
-                // Send additional messages if needed
-                for (let i = 1; i < formattedResponse.length; i++) {
-                    await interaction.channel.send({
-                        content: formattedResponse[i],
-                        components: i === formattedResponse.length - 1 ? [createResponseControls()] : []
-                    })
-                }
+        switch (customId) {
+            case 'ai_regenerate':
+                await handleRegenerate(interaction, message, originalMessage)
                 break
-            }
 
-            case 'refine': {
-                await interaction.channel.send({
-                    content: `<@${interaction.user.id}> Reply to this message with how you'd like me to refine my response.`,
-                    components: []
-                })
+            case 'ai_refine':
+                await handleRefine(interaction, message, originalMessage)
                 break
-            }
 
-            case 'clear': {
-                await aiService.clearUserHistory(interaction.user.id)
-                await interaction.channel.send({
-                    content: `<@${interaction.user.id}> I've cleared our conversation history.`,
-                    components: []
-                })
+            case 'ai_clear':
+                await handleClearHistory(interaction)
                 break
-            }
 
-            case 'save': {
-                try {
-                    await aiService.saveToKnowledgeBase(originalMessage, interaction.user.id)
-                    await interaction.channel.send({
-                        content: `<@${interaction.user.id}> Response saved to knowledge base!`,
-                        components: []
-                    })
-                } catch (error) {
-                    console.error('Failed to save to knowledge base:', error)
-                    await interaction.channel.send({
-                        content: `<@${interaction.user.id}> Sorry, I couldn't save that to the knowledge base. Please try again later.`,
-                        components: []
-                    })
-                }
+            case 'ai_save':
+                await handleSaveResponse(interaction, message)
                 break
-            }
         }
 
         return true
     } catch (error) {
-        console.error('Error handling AI control button:', error)
-        await interaction.channel.send({
-            content: `<@${interaction.user.id}> Sorry, I encountered an error processing that action. Please try again.`,
-            components: []
-        })
+        console.error('Error handling AI control:', error)
+
+        // Provide feedback even if there's an error
+        await interaction
+            .followUp({
+                content: 'I encountered an error processing your request.',
+                ephemeral: true
+            })
+            .catch(() => {})
+
         return true
+    }
+}
+
+async function handleRegenerate(interaction, message, originalMessage) {
+    // Start typing to show activity
+    await interaction.channel.sendTyping().catch(() => {})
+
+    try {
+        // Get the regenerated response
+        const response = await aiService.regenerateResponse(originalMessage)
+
+        // Edit the original response with the new content
+        await message.edit({
+            content: response.content,
+            components: [createResponseControls()]
+        })
+    } catch (error) {
+        console.error('Error regenerating response:', error)
+        await interaction.followUp({
+            content: "I couldn't regenerate the response. Please try again.",
+            ephemeral: true
+        })
+    }
+}
+
+async function handleRefine(interaction, message, originalMessage) {
+    // Prompt the user for refinement instructions
+    await interaction.followUp({
+        content: 'How would you like me to refine my response? Please provide specific instructions.',
+        ephemeral: true
+    })
+
+    // Set up a message collector to wait for their refinement instructions
+    const filter = m => m.author.id === interaction.user.id
+    const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 })
+
+    collector.on('collect', async refinementMsg => {
+        collector.stop()
+
+        // Let the user know we're processing
+        await interaction.channel.sendTyping().catch(() => {})
+
+        try {
+            // Get the refined response
+            const response = await aiService.regenerateResponse(originalMessage, {
+                refinement: refinementMsg.content
+            })
+
+            // Edit the original response with the refined content
+            await message.edit({
+                content: response.content,
+                components: [createResponseControls()]
+            })
+
+            // Delete the refinement message to keep the chat clean
+            await refinementMsg.delete().catch(() => {})
+        } catch (error) {
+            console.error('Error refining response:', error)
+            await refinementMsg.reply("I couldn't refine the response. Please try again.")
+        }
+    })
+}
+
+async function handleClearHistory(interaction) {
+    try {
+        // Clear the user's conversation history
+        await aiService.clearUserHistory(interaction.user.id)
+
+        await interaction.followUp({
+            content: "I've cleared your conversation history. We're starting with a clean slate!",
+            ephemeral: true
+        })
+    } catch (error) {
+        console.error('Error clearing history:', error)
+        await interaction.followUp({
+            content: "I couldn't clear your conversation history. Please try again.",
+            ephemeral: true
+        })
+    }
+}
+
+async function handleSaveResponse(interaction, message) {
+    try {
+        // Save the response to the knowledge base
+        await aiService.saveToKnowledgeBase(message, interaction.user.id)
+
+        await interaction.followUp({
+            content: "I've saved this response to the knowledge base for future reference!",
+            ephemeral: true
+        })
+    } catch (error) {
+        console.error('Error saving response:', error)
+        await interaction.followUp({
+            content: "I couldn't save this response to the knowledge base. Please try again.",
+            ephemeral: true
+        })
     }
 }

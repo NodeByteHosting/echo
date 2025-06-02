@@ -1,4 +1,5 @@
 import { EmbedBuilder } from 'discord.js'
+import { makeSerializable } from '../utils/serialization.js'
 
 /**
  * Utility class for handling audit log events
@@ -25,6 +26,9 @@ export class AuditLogger {
                 where: { id: guild.id }
             })
 
+            // Convert any BigInt values for safe storage
+            const safeChanges = changes ? makeSerializable(changes) : null
+
             // Always store in database regardless of Discord channel config
             await this.prisma.auditLog.create({
                 data: {
@@ -34,7 +38,7 @@ export class AuditLogger {
                     performedBy: performedBy ? BigInt(performedBy) : null,
                     targetId,
                     targetType,
-                    changes,
+                    changes: safeChanges,
                     details: details || embed.data.description || null
                 }
             })

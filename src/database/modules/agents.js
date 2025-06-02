@@ -33,4 +33,64 @@ export class AgentModule {
             data: { isActive }
         })
     }
+
+    /**
+     * Find an available support agent
+     * @returns {Promise<Object|null>} Available agent or null
+     */
+    async findAvailableAgent() {
+        return this.prisma.supportAgent.findFirst({
+            where: {
+                isActive: true,
+                tickets: {
+                    every: {
+                        status: {
+                            in: ['RESOLVED', 'CLOSED']
+                        }
+                    }
+                }
+            },
+            include: {
+                user: true
+            }
+        })
+    }
+
+    /**
+     * Get all active agents
+     * @returns {Promise<Array>} Array of active agents
+     */
+    async getAllActiveAgents() {
+        return this.prisma.supportAgent.findMany({
+            where: {
+                isActive: true
+            },
+            include: {
+                user: true,
+                tickets: {
+                    where: {
+                        status: {
+                            not: 'CLOSED'
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    /**
+     * Get agent by user ID
+     * @param {BigInt} userId - The user ID
+     * @returns {Promise<Object|null>} Agent or null
+     */
+    async getAgentByUserId(userId) {
+        return this.prisma.supportAgent.findFirst({
+            where: {
+                userId: userId
+            },
+            include: {
+                user: true
+            }
+        })
+    }
 }

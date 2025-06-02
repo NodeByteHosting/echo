@@ -1,11 +1,12 @@
 import { BaseAgent } from './baseAgent.js'
-import { PrismaClient } from '@prisma/client'
+import { db } from '../../database/client.js'
+import { memoize } from '../../utils/performanceOptimizer.js'
 
 export class KnowledgeAgent extends BaseAgent {
     constructor(aiModel) {
         super()
         this.aiModel = aiModel
-        this.prisma = new PrismaClient()
+        this.database = db.getInstance()
 
         // Rate limiting configuration
         this.rateLimits = {
@@ -21,10 +22,25 @@ export class KnowledgeAgent extends BaseAgent {
 
         // Cache for rate limiting
         this.requestCounts = new Map()
+
+        // Create a cache for knowledge base results to reduce database queries
+        this.knowledgeCache = new Map()
+        this.cacheConfig = {
+            maxSize: 200,
+            ttl: 30 * 60 * 1000 // 30 minutes
+        }
+
+        // Memoize expensive operations
+        this.canHandleMemoized = memoize(this._canHandleImplementation.bind(this))
     }
 
     async canHandle(message) {
-        // Let AI determine if this is a knowledge-based query
+        // Use the memoized version for better performance
+        return this.canHandleMemoized(message)
+    }
+
+    async _canHandleImplementation(message) {
+        // Original implementation but only called when needed
         const response = await this.aiModel
             .getResponse(`Determine if this message is primarily seeking knowledge or information:
 Message: "${message}"
@@ -42,73 +58,350 @@ Return: true or false`)
 
     async process(message, userId, contextData) {
         try {
+            // Fast path for save requests
+            if (message.toLowerCase().includes('save this as:')) {
+                return await this.handleSaveRequest(message, userId)
+            }
+
+            // Check cache for similar queries
+            const cacheKey = this._generateCacheKey(message)
+            const cachedResults = this._getCachedResults(cacheKey)
+
+            if (cachedResults) {
+                console.log('Using cached knowledge results')
+                const response = await this.synthesize(message, cachedResults)
+                const enhancedResponse = await this.addSaveSuggestionIfRelevant(response, message)
+
+                return {
+                    content: enhancedResponse,
+                    suggestedTopics: cachedResults.topics || []
+                }
+            }
+
+            // Continue with original flow but with optimizations
+            // Use a simpler prompt for faster analysis
+            const queryContext = await this._analyzeQueryFast(message, contextData)
+
+            // Optimize database query - use the knowledge module
+            const knowledgeResults = await this.database.knowledge.search(queryContext.topic, {
+                tags: queryContext.relatedTopics,
+                verified: true,
+                limit: 3
+            })
+
+            // Cache the results for future use
+            this._cacheResults(cacheKey, knowledgeResults, queryContext.relatedTopics)
+
+            // Increment use count as a background task, don't await it
+            if (knowledgeResults.length > 0) {
+                knowledgeResults.forEach(result => {
+                    this.database.knowledge.incrementUseCount(result.id).catch(err => {
+                        console.error(`Failed to increment use count for entry ${result.id}:`, err)
+                    })
+                })
+            }
+
+            // If not enough knowledge, request research
+            if (knowledgeResults.length < 2) {
+                return {
+                    content:
+                        "I don't have enough information about that in my knowledge base yet. Let me research it for you.",
+                    needsResearch: true,
+                    searchQuery: `${queryContext.topic} ${queryContext.relatedTopics.join(' ')}`
+                }
+            }
+
+            // Generate response
+            const response = await this.synthesize(message, knowledgeResults)
+
+            // Only add save suggestion if it's a substantial response
+            let enhancedResponse = response
+            if (response.length > 200) {
+                enhancedResponse = await this.addSaveSuggestionIfRelevant(response, message)
+            }
+
+            return {
+                content: enhancedResponse,
+                suggestedTopics: queryContext.relatedTopics
+            }
+        } catch (error) {
+            console.error('Knowledge processing error:', error)
+            return {
+                content:
+                    'I encountered an error while processing your knowledge request. Please try again or rephrase your question.'
+            }
+        }
+    }
+
+    /**
+     * Faster query analysis with simplified prompt
+     */
+    async _analyzeQueryFast(message, contextData) {
+        // Simple keyword extraction for very fast queries
+        const keywords = this._extractKeywords(message)
+
+        if (keywords.length > 0) {
+            return {
+                topic: keywords[0],
+                relatedTopics: keywords.slice(1, 4)
+            }
+        }
+
+        // Fall back to AI for more complex queries
+        try {
             const analysis = await this.aiModel.getResponse({
-                message,
+                message: `Extract the main topic and related topics from this query: "${message}"
+Return JSON: {"topic": "main topic", "relatedTopics": ["topic1", "topic2"]}`,
                 context: {
                     template: 'analyze_knowledge_request',
                     userContext: contextData
                 }
             })
 
-            const queryContext = JSON.parse(analysis)
-
-            const knowledgeResults = await this.prisma.knowledgeBase.findMany({
-                where: {
-                    OR: [
-                        { title: { contains: queryContext.topic, mode: 'insensitive' } },
-                        { content: { contains: queryContext.topic, mode: 'insensitive' } },
-                        { tags: { hasSome: queryContext.relatedTopics } }
-                    ],
-                    isVerified: true
-                },
-                orderBy: [{ useCount: 'desc' }, { rating: 'desc' }],
-                take: 3
-            })
-
-            // Increment use count for found entries
-            await Promise.all(
-                knowledgeResults.map(entry =>
-                    this.prisma.knowledgeBase.update({
-                        where: { id: entry.id },
-                        data: { useCount: { increment: 1 } }
-                    })
-                )
-            )
-
-            // If not enough knowledge, request research
-            if (knowledgeResults.length < 2) {
-                return {
-                    content: null,
-                    needsResearch: true,
-                    searchQuery: `${queryContext.topic} ${queryContext.relatedTopics.join(' ')}`
-                }
-            }
-
-            const response = await this.synthesize(message, knowledgeResults)
-
-            return {
-                content: response,
-                suggestedTopics: queryContext.relatedTopics
-            }
+            return JSON.parse(analysis)
         } catch (error) {
-            console.error('Knowledge processing error:', error)
-            throw error
+            console.error('Error parsing analysis:', error)
+            // Fallback to simpler extraction
+            return {
+                topic: message.split(' ').slice(0, 3).join(' '),
+                relatedTopics: []
+            }
         }
     }
 
-    async synthesize(message, results) {
-        return await this.aiModel.getResponse({
-            message,
-            context: {
-                knowledgeResults: results.map(r => ({
-                    title: r.title,
-                    content: r.content,
-                    category: r.category,
-                    rating: r.rating
-                })),
-                template: 'knowledge_synthesis'
-            }
+    /**
+     * Extract keywords from a message
+     */
+    _extractKeywords(message) {
+        const stopWords = [
+            'a',
+            'an',
+            'the',
+            'and',
+            'or',
+            'but',
+            'is',
+            'are',
+            'was',
+            'were',
+            'to',
+            'of',
+            'in',
+            'for',
+            'with',
+            'how',
+            'what',
+            'why',
+            'when',
+            'where'
+        ]
+
+        return message
+            .toLowerCase()
+            .replace(/[^\w\s]/g, '')
+            .split(/\s+/)
+            .filter(word => word.length > 3 && !stopWords.includes(word))
+            .slice(0, 5)
+    }
+
+    /**
+     * Generate a cache key for a query
+     */
+    _generateCacheKey(message) {
+        const normalized = message.toLowerCase().trim().replace(/\s+/g, ' ')
+        return `kb:${normalized.substring(0, 100)}`
+    }
+
+    /**
+     * Get cached results if available
+     */
+    _getCachedResults(key) {
+        const cached = this.knowledgeCache.get(key)
+        if (!cached) {
+            return null
+        }
+
+        if (Date.now() - cached.timestamp > this.cacheConfig.ttl) {
+            this.knowledgeCache.delete(key)
+            return null
+        }
+
+        return cached.results
+    }
+
+    /**
+     * Cache knowledge results
+     */
+    _cacheResults(key, results, topics) {
+        if (this.knowledgeCache.size >= this.cacheConfig.maxSize) {
+            // Remove oldest entry
+            const oldestKey = [...this.knowledgeCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0]
+            this.knowledgeCache.delete(oldestKey)
+        }
+
+        this.knowledgeCache.set(key, {
+            results: results,
+            topics: topics,
+            timestamp: Date.now()
         })
+    }
+
+    /**
+     * Increment use counts as a background operation
+     */
+    async _incrementUseCounts(results) {
+        // Update counts in batches to improve performance
+        const updatePromises = results.map(entry =>
+            this.prisma.knowledgeBase.update({
+                where: { id: entry.id },
+                data: { useCount: { increment: 1 } },
+                select: { id: true } // Minimize returned data
+            })
+        )
+
+        await Promise.all(updatePromises)
+    }
+
+    /**
+     * Handle a request to save information to the knowledge base
+     * @param {string} message - The user message
+     * @param {string} userId - The user ID
+     * @returns {Promise<Object>} The response object
+     */
+    async handleSaveRequest(message, userId) {
+        try {
+            // Extract the title from "Save this as: [title]"
+            const titleMatch = message.match(/save this as:\s*(.+)/i)
+            if (!titleMatch || !titleMatch[1]) {
+                return {
+                    content:
+                        'I couldn\'t find a title in your save request. Please use the format: "Save this as: [Title]"'
+                }
+            }
+
+            const title = titleMatch[1].trim()
+
+            // Get the conversation context to extract content
+            // For this implementation, we'll use the message itself as content
+            // In a real implementation, you'd retrieve previous messages
+            const content = message.replace(/save this as:.+/i, '').trim()
+
+            if (content.length < 50) {
+                return {
+                    content: "There isn't enough content to save. Please provide more information or context."
+                }
+            }
+
+            // Analyze the content to determine category and tags
+            const analysisPrompt = `Analyze this content for a knowledge base entry:
+Content: "${content}"
+
+Extract:
+1. Category: One of [general, technical, faq, tutorial, policy, guide]
+2. Tags: Up to 5 relevant tags (lowercase, hyphenated)
+
+Return as JSON:
+{
+  "category": "extracted category",
+  "tags": ["tag1", "tag2", ...]
+}`
+
+            const analysisResult = await this.aiModel.getResponse(analysisPrompt)
+            const analysis = JSON.parse(analysisResult)
+
+            // Save the entry
+            try {
+                const entry = await this.saveEntry(title, content, analysis.category, analysis.tags, userId)
+
+                return {
+                    content: `✅ I've saved that to the knowledge base as "${entry.title}" in the ${entry.category} category.`
+                }
+            } catch (error) {
+                return {
+                    content: `I couldn't save that to the knowledge base: ${error.message}`
+                }
+            }
+        } catch (error) {
+            console.error('Error handling save request:', error)
+            return {
+                content:
+                    "Sorry, I wasn't able to process that save request. There was an error with the format or validation."
+            }
+        }
+    }
+
+    /**
+     * Add a suggestion to save the response if it contains valuable information
+     * @param {string} responseContent - The AI's response content
+     * @param {string} originalQuery - The original user query
+     * @returns {Promise<string>} Enhanced response with save suggestion if relevant
+     */
+    async addSaveSuggestionIfRelevant(responseContent, originalQuery) {
+        if (!responseContent) {
+            return "I don't have specific information about that in my knowledge base."
+        }
+
+        // Check if this response contains valuable information worth saving
+        const checkPrompt = `Determine if this interaction contains valuable technical information worth saving to a knowledge base:
+User Query: "${originalQuery}"
+Response: "${responseContent}"
+
+Consider:
+1. Is this a detailed technical explanation?
+2. Does it contain steps, commands, or configurations?
+3. Would other users benefit from this information in the future?
+4. Is it specific enough to be useful as a reference?
+
+Return: true or false`
+
+        const shouldSave = await this.aiModel.getResponse(checkPrompt)
+
+        if (shouldSave.toLowerCase().includes('true')) {
+            // Suggest a title for saving
+            const titlePrompt = `Suggest a concise, descriptive title for saving this information to a knowledge base:
+Content: "${responseContent}"
+
+Return only the title text, no quotes or explanation.`
+
+            const suggestedTitle = await this.aiModel.getResponse(titlePrompt)
+
+            // Add a suggestion to save at the end of the response
+            return `${responseContent}
+
+---
+*This information looks useful! To save it to our knowledge base, just reply with:*
+"Save this as: ${suggestedTitle}"`
+        }
+
+        return responseContent
+    }
+
+    // Ensure the synthesize method never returns empty content
+    async synthesize(message, results) {
+        try {
+            const response = await this.aiModel.getResponse({
+                message,
+                context: {
+                    knowledgeResults: results.map(r => ({
+                        title: r.title,
+                        content: r.content,
+                        category: r.category,
+                        rating: r.rating
+                    })),
+                    template: 'knowledge_synthesis'
+                }
+            })
+
+            // Fallback if response is empty
+            if (!response || response.trim() === '') {
+                return "Based on my knowledge base, I found some information but couldn't synthesize a proper response. Please try rephrasing your question."
+            }
+
+            return response
+        } catch (error) {
+            console.error('Error in synthesize:', error)
+            return 'I found some information in my knowledge base, but encountered an error while processing it. Please try again.'
+        }
     }
 
     async saveEntry(title, content, category, tags, userId) {
@@ -123,14 +416,9 @@ Return: true or false`)
             }
 
             // Check for similar existing entries to prevent duplicates
-            const similar = await this.prisma.knowledgeBase.findMany({
-                where: {
-                    OR: [
-                        { title: { contains: title, mode: 'insensitive' } },
-                        { content: { contains: content.substring(0, 100), mode: 'insensitive' } }
-                    ]
-                },
-                select: { id: true, title: true }
+            const similar = await this.database.knowledge.search(title, {
+                limit: 5,
+                verified: false // Include unverified entries in similarity check
             })
 
             if (similar.length > 0) {
@@ -139,21 +427,14 @@ Return: true or false`)
                 )
             }
 
-            // Create the entry
-            const entry = await this.prisma.knowledgeBase.create({
-                data: {
-                    title,
-                    content,
-                    category: category.toLowerCase(),
-                    tags: tags.map(t => t.toLowerCase()),
-                    createdBy: BigInt(userId),
-                    metadata: {
-                        wordCount: content.split(/\s+/).length,
-                        createdAt: new Date(),
-                        lastUpdated: new Date(),
-                        version: 1
-                    }
-                }
+            // Create the entry using the knowledge module
+            const entry = await this.database.knowledge.create({
+                title,
+                content,
+                category: category.toLowerCase(),
+                tags: tags.map(t => t.toLowerCase()),
+                createdBy: BigInt(userId),
+                isVerified: false
             })
 
             // Log the creation for monitoring
@@ -174,14 +455,7 @@ Return: true or false`)
 
     async verifyEntry(entryId, moderatorId) {
         try {
-            return await this.prisma.knowledgeBase.update({
-                where: { id: entryId },
-                data: {
-                    isVerified: true,
-                    verifiedBy: BigInt(moderatorId),
-                    verifiedAt: new Date()
-                }
-            })
+            return await this.database.knowledge.verify(entryId, moderatorId)
         } catch (error) {
             console.error('Failed to verify entry:', error)
             throw error
@@ -193,28 +467,7 @@ Return: true or false`)
             // Rate limit check for ratings
             await this.checkRateLimit(userId, 'rating')
 
-            const entry = await this.prisma.knowledgeBase.findUnique({
-                where: { id: entryId },
-                select: {
-                    rating: true,
-                    ratingCount: true
-                }
-            })
-
-            if (!entry) {
-                throw new Error('Entry not found')
-            }
-
-            const newRating =
-                entry.ratingCount > 0 ? (entry.rating * entry.ratingCount + rating) / (entry.ratingCount + 1) : rating
-
-            return await this.prisma.knowledgeBase.update({
-                where: { id: entryId },
-                data: {
-                    rating: newRating,
-                    ratingCount: { increment: 1 }
-                }
-            })
+            return await this.database.knowledge.rate(entryId, rating, userId)
         } catch (error) {
             console.error('Failed to rate entry:', error)
             throw error

@@ -5,6 +5,7 @@ This document describes the database schema used in the Echo bot system. The sch
 ## Enums
 
 ### UserRole
+
 ```prisma
 enum UserRole {
     USER
@@ -16,6 +17,7 @@ enum UserRole {
 ```
 
 ### TicketStatus
+
 ```prisma
 enum TicketStatus {
     OPEN
@@ -27,6 +29,7 @@ enum TicketStatus {
 ```
 
 ### Permission
+
 ```prisma
 enum Permission {
     // Ticket System
@@ -78,6 +81,7 @@ enum Permission {
 ```
 
 ### Transaction and Item Types
+
 ```prisma
 enum TransactionType {
     PURCHASE
@@ -120,7 +124,9 @@ enum AuditEvent {
 ## Core Models
 
 ### User
+
 The central model representing a Discord user in the system.
+
 ```prisma
 model User {
     id                  BigInt                @id
@@ -153,7 +159,9 @@ model User {
 ### Support System Models
 
 #### Ticket
+
 Represents a support ticket in the system.
+
 ```prisma
 model Ticket {
     id             Int           @id @default(autoincrement())
@@ -176,7 +184,9 @@ model Ticket {
 ```
 
 #### Message
+
 Messages within support tickets.
+
 ```prisma
 model Message {
     id         Int      @id @default(autoincrement())
@@ -193,7 +203,9 @@ model Message {
 ```
 
 #### SupportAgent
+
 Represents users who can handle support tickets.
+
 ```prisma
 model SupportAgent {
     id        BigInt   @id
@@ -210,7 +222,9 @@ model SupportAgent {
 ### User Profile and Progress
 
 #### Profile
+
 User profile information and customization.
+
 ```prisma
 model Profile {
     id              Int       @id @default(autoincrement())
@@ -233,7 +247,9 @@ model Profile {
 ```
 
 #### Level
+
 User progression system.
+
 ```prisma
 model Level {
     id           Int       @id @default(autoincrement())
@@ -248,7 +264,9 @@ model Level {
 ```
 
 #### Achievement
+
 User achievements and rewards.
+
 ```prisma
 model Achievement {
     id          Int             @id @default(autoincrement())
@@ -265,7 +283,9 @@ model Achievement {
 ### Economy System
 
 #### Economy
+
 User's economic data.
+
 ```prisma
 model Economy {
     id           Int           @id @default(autoincrement())
@@ -282,7 +302,9 @@ model Economy {
 ```
 
 #### Transaction
+
 Economic transaction history.
+
 ```prisma
 model Transaction {
     id          Int             @id @default(autoincrement())
@@ -296,7 +318,9 @@ model Transaction {
 ```
 
 #### Item and Inventory
+
 Items that users can own.
+
 ```prisma
 model Item {
     id          Int         @id @default(autoincrement())
@@ -323,7 +347,9 @@ model Inventory {
 ### Knowledge Base
 
 #### KnowledgeBase
+
 Community knowledge base entries.
+
 ```prisma
 model KnowledgeBase {
     id          Int      @id @default(autoincrement())
@@ -349,7 +375,9 @@ model KnowledgeBase {
 ### Analytics and Logging
 
 #### Statistics
+
 User activity statistics.
+
 ```prisma
 model Statistics {
     id              Int      @id @default(autoincrement())
@@ -366,7 +394,9 @@ model Statistics {
 ```
 
 #### ModerationLog
+
 Moderation action history.
+
 ```prisma
 model ModerationLog {
     id          Int       @id @default(autoincrement())
@@ -382,7 +412,9 @@ model ModerationLog {
 ```
 
 #### AuditLog
+
 Server event audit logs.
+
 ```prisma
 model AuditLog {
     id          BigInt     @id @default(autoincrement())
@@ -406,7 +438,9 @@ model AuditLog {
 ### Server Configuration
 
 #### GuildConfig
+
 Discord server configuration.
+
 ```prisma
 model GuildConfig {
     id                 String       @id
@@ -431,27 +465,28 @@ To update the database schema:
 
 1. Make changes to `prisma/schema.prisma`
 2. Run migrations:
-   ```bash
-   npx prisma migrate dev --name <migration-name>
-   ```
+    ```bash
+    npx prisma migrate dev --name <migration-name>
+    ```
 3. Update generated types:
-   ```bash
-   npx prisma generate
-   ```
+    ```bash
+    npx prisma generate
+    ```
 
 ## Indexes and Performance
 
 The schema includes several strategic indexes:
-- User lookups: username, email
-- Knowledge base: tags, category, createdBy
-- Audit logs: guildId, eventType, performedBy, createdAt
-- Relationships: Most foreign keys are indexed by default
+
+-   User lookups: username, email
+-   Knowledge base: tags, category, createdBy
+-   Audit logs: guildId, eventType, performedBy, createdAt
+-   Relationships: Most foreign keys are indexed by default
 
 ## Schema Conventions
 
-- IDs for Discord-related entities use `BigInt` (for Discord Snowflakes)
-- Other IDs use auto-incrementing `Int`
-- Timestamps use `DateTime`
-- Long text fields use `@db.Text`
-- JSON fields for flexible data storage
-- Explicit relation naming for clarity
+-   IDs for Discord-related entities use `BigInt` (for Discord Snowflakes)
+-   Other IDs use auto-incrementing `Int`
+-   Timestamps use `DateTime`
+-   Long text fields use `@db.Text`
+-   JSON fields for flexible data storage
+-   Explicit relation naming for clarity
