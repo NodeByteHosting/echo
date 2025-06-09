@@ -6,6 +6,10 @@ export class PerformanceTool {
         this.responseTimings = new Map()
         this.errorCounts = new Map()
         this.startTime = Date.now()
+        this.totalRequests = 0
+        this.cacheHits = 0
+        this.cacheMisses = 0
+        this.cacheEvictions = 0
     }
 
     startTracking(messageId) {
@@ -128,5 +132,78 @@ ${this.getHealthAdvice(metrics)}`
         }
 
         return advice.length ? '\n**Health Advice:**\n' + advice.join('\n') : ''
+    }
+
+    /**
+     * Get all performance metrics for system monitoring
+     * @returns {Object} Complete metrics object with all stats
+     */
+    getAllMetrics() {
+        const stats = this.getSystemStats()
+        const memoryUsage = Math.round((stats.memory.heapUsed / stats.memory.heapTotal) * 100)
+
+        return {
+            // System metrics
+            uptime: stats.uptime,
+            memoryUsage: memoryUsage,
+            systemLoad: stats.system.loadAvg[0],
+
+            // Request metrics
+            totalRequests: this.totalRequests,
+            avgResponseTime: this.calculateAverageResponseTime(),
+            errorRate: this.calculateErrorRate(),
+
+            // Cache metrics
+            cacheHitRate: this.cacheHits / (this.cacheHits + this.cacheMisses || 1),
+            cacheEvictionRate: this.cacheEvictions / (this.totalRequests || 1),
+
+            // Detailed error metrics
+            errorsByType: Object.fromEntries(this.errorCounts),
+
+            // Raw stats for custom processing
+            rawStats: stats
+        }
+    }
+
+    /**
+     * Record a request being processed
+     * @param {string} type - Type of request
+     */
+    recordRequest(type = 'general') {
+        this.totalRequests++
+    }
+
+    /**
+     * Record a cache hit
+     */
+    recordCacheHit() {
+        this.cacheHits++
+    }
+
+    /**
+     * Record a cache miss
+     */
+    recordCacheMiss() {
+        this.cacheMisses++
+    }
+
+    /**
+     * Record a cache eviction
+     */
+    recordCacheEviction() {
+        this.cacheEvictions++
+    }
+
+    /**
+     * Reset all metrics counters
+     */
+    resetMetrics() {
+        this.responseTimings.clear()
+        this.errorCounts.clear()
+        this.startTime = Date.now()
+        this.totalRequests = 0
+        this.cacheHits = 0
+        this.cacheMisses = 0
+        this.cacheEvictions = 0
     }
 }

@@ -44,6 +44,7 @@ Echo's AI system is built on a sophisticated multi-agent architecture designed t
     - Tracks resolution status
 
 5. **Ticket Agent**
+
     - Creates and manages support tickets
     - Assigns tickets to support agents
     - Tracks ticket status and priority
@@ -57,13 +58,13 @@ Echo's AI system is built on a sophisticated multi-agent architecture designed t
     - Provides optimization tips
     - Validates implementations
     - Handles various analysis types:
-      - Static analysis
-      - Performance analysis
-      - Memory analysis
-      - Complexity analysis
-      - Security analysis
-      - Dependency analysis
-      - Coverage analysis
+        - Static analysis
+        - Performance analysis
+        - Memory analysis
+        - Complexity analysis
+        - Security analysis
+        - Dependency analysis
+        - Coverage analysis
 
 ## System Integration
 
@@ -72,23 +73,26 @@ Echo's AI system is built on a sophisticated multi-agent architecture designed t
 The agents in Echo work together through several collaboration patterns:
 
 1. **Sequential Processing**
-   - Message is classified and routed to the most appropriate agent
-   - If the primary agent needs help, it can delegate to other agents
+
+    - Message is classified and routed to the most appropriate agent
+    - If the primary agent needs help, it can delegate to other agents
 
 2. **Research Augmentation**
-   - Knowledge and Support agents can request research assistance
-   - Research agent enhances responses with external information
-   - Results are integrated into the final response
+
+    - Knowledge and Support agents can request research assistance
+    - Research agent enhances responses with external information
+    - Results are integrated into the final response
 
 3. **Background Research**
-   - For certain conversation types, research happens in the background
-   - Results are cached for future related questions
-   - Improves response quality without increasing latency
+
+    - For certain conversation types, research happens in the background
+    - Results are cached for future related questions
+    - Improves response quality without increasing latency
 
 4. **Context Sharing**
-   - Agents share context about the conversation
-   - Previous interactions inform current responses
-   - User preferences and history are maintained across agents
+    - Agents share context about the conversation
+    - Previous interactions inform current responses
+    - User preferences and history are maintained across agents
 
 ### Data Flow
 
@@ -102,19 +106,19 @@ graph TD
     C -->|Code| G[Code Analysis Agent]
     C -->|Ticket| H[Ticket Agent]
     C -->|Research| I[Research Agent]
-    
+
     E -.->|Request Research| I
     F -.->|Request Research| I
     I -.->|Provide Results| E
     I -.->|Provide Results| F
-    
+
     D --> J[Response Generation]
     E --> J
     F --> J
     G --> J
     H --> J
     I --> J
-    
+
     J --> K[Response Validation]
     K --> L[User Response]
 ```
@@ -131,8 +135,8 @@ interface AgentResponse {
     confidence: number // Response confidence score
     source?: string // Information source
     sourceResults?: Array<{
-        title: string,
-        link: string,
+        title: string
+        link: string
         snippet: string
     }> // Research sources
 }
@@ -265,18 +269,20 @@ Echo implements an intelligent caching system to improve response times:
 // Generate a cache key for responses
 _generateCacheKey = (prompt, context) => {
     // Normalize prompt by trimming, lowercasing, and removing extra spaces
-    const normalizedPrompt = prompt.trim().toLowerCase().replace(/\s+/g, ' ');
+    const normalizedPrompt = prompt.trim().toLowerCase().replace(/\s+/g, ' ')
 
     // Don't cache complex or personalized queries
-    if (prompt.length > 150 ||
+    if (
+        prompt.length > 150 ||
         context.personalData ||
         normalizedPrompt.includes('my ') ||
-        normalizedPrompt.includes('I ')) {
-        return null;
+        normalizedPrompt.includes('I ')
+    ) {
+        return null
     }
 
     // Create a stable key from the normalized prompt
-    return `response:${normalizedPrompt}`;
+    return `response:${normalizedPrompt}`
 }
 ```
 
@@ -286,7 +292,7 @@ To prevent circular reference errors, all complex objects are serialized before 
 
 ```javascript
 // Before passing to AI model
-const safeObject = makeSerializable(complexObject);
+const safeObject = makeSerializable(complexObject)
 ```
 
 ### Background Processing
@@ -298,12 +304,12 @@ Non-blocking operations are used for improved responsiveness:
 _performBackgroundResearch = async (prompt, userId) => {
     try {
         // Start research in the background
-        const researchResults = await this.researchAgent.process(prompt, userId);
+        const researchResults = await this.researchAgent.process(prompt, userId)
 
         // Store the results for potential future use
-        this._cacheResearchResults(userId, prompt, researchResults);
+        this._cacheResearchResults(userId, prompt, researchResults)
     } catch (error) {
-        console.error('Background research failed:', error);
+        console.error('Background research failed:', error)
     }
 }
 ```

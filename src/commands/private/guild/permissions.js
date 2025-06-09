@@ -147,7 +147,7 @@ export default {
     },
 
     run: async (client, interaction) => {
-        await interaction.deferReply({ ephemeral: true })
+        await interaction.deferReply()
 
         const subCommand = interaction.options.getSubcommand()
         const targetUser = interaction.options.getUser('user')

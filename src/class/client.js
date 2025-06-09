@@ -23,13 +23,52 @@ class EchoBot extends Client {
     constructor() {
         super({
             intents: [
+                // Auto Moderation Intents
+                GatewayIntentBits.AutoModerationConfiguration,
+                GatewayIntentBits.AutoModerationExecution,
+                // Direct Message Intents
+                GatewayIntentBits.DirectMessages,
+                GatewayIntentBits.DirectMessagePolls,
+                GatewayIntentBits.DirectMessageReactions,
+                GatewayIntentBits.DirectMessageTyping,
+                // Guild Intents
                 GatewayIntentBits.Guilds,
                 GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.GuildMembers,
-                GatewayIntentBits.MessageContent
+                GatewayIntentBits.GuildInvites,
+                GatewayIntentBits.GuildWebhooks,
+                GatewayIntentBits.GuildIntegrations,
+                GatewayIntentBits.GuildMessagePolls,
+                GatewayIntentBits.GuildMessageReactions,
+                GatewayIntentBits.GuildMessageTyping,
+                GatewayIntentBits.GuildEmojisAndStickers,
+                GatewayIntentBits.GuildModeration,
+                GatewayIntentBits.GuildPresences,
+                GatewayIntentBits.GuildScheduledEvents,
+                GatewayIntentBits.GuildVoiceStates
             ],
-            partials: [Partials.Message],
-            allowedMentions: { parse: ['users', 'roles'], repliedUser: true }
+            partials: [
+                Partials.Channel,
+                Partials.GuildMember,
+                Partials.GuildScheduledEvent,
+                Partials.Message,
+                Partials.Reaction,
+                Partials.ThreadMember,
+                Partials.User,
+                Partials.AutoModerationConfiguration,
+                Partials.AutoModerationExecution,
+                Partials.Client,
+                Partials.Collection,
+                Partials.DirectMessages,
+                Partials.DirectMessagePolls,
+                Partials.DirectMessageReactions,
+                Partials.DirectMessageTyping,
+                Partials.Guilds
+            ],
+            allowedMentions: {
+                parse: ['users', 'roles', 'everyone'],
+                repliedUser: true
+            }
         })
 
         this.Gateway = Discord

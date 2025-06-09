@@ -111,18 +111,18 @@ Echo has been optimized for maximum performance:
 
 ### Response Time Improvements
 
-- **AI Response Caching** - Frequently asked questions are cached to reduce AI API calls
-- **Smart Agent Selection** - Uses quick classification before full agent selection
-- **Optimized Database Queries** - Efficient queries with appropriate indexes
-- **Concurrent Operations** - Parallel processing of independent tasks
-- **Token Optimization** - Dynamic allocation of token budgets based on query complexity
+-   **AI Response Caching** - Frequently asked questions are cached to reduce AI API calls
+-   **Smart Agent Selection** - Uses quick classification before full agent selection
+-   **Optimized Database Queries** - Efficient queries with appropriate indexes
+-   **Concurrent Operations** - Parallel processing of independent tasks
+-   **Token Optimization** - Dynamic allocation of token budgets based on query complexity
 
 ### Memory & Resource Usage
 
-- **Memory Efficient Caching** - TTL-based caching with size limits
-- **Background Processing** - Non-critical tasks run asynchronously
-- **Smart Timeouts** - Prevent hanging on external service calls
-- **Selective Context** - Only pass essential context data to reduce memory usage
+-   **Memory Efficient Caching** - TTL-based caching with size limits
+-   **Background Processing** - Non-critical tasks run asynchronously
+-   **Smart Timeouts** - Prevent hanging on external service calls
+-   **Selective Context** - Only pass essential context data to reduce memory usage
 
 ### Configuration Tips
 

@@ -5,10 +5,11 @@ Echo's knowledge base system allows storing, retrieving, and managing informatio
 ## Overview
 
 The knowledge base is built on:
-- PostgreSQL database storage via Prisma
-- KnowledgeAgent for intelligent retrieval
-- AI-powered synthesis of information
-- User contribution system
+
+-   PostgreSQL database storage via Prisma
+-   KnowledgeAgent for intelligent retrieval
+-   AI-powered synthesis of information
+-   User contribution system
 
 ## Database Structure
 
@@ -47,6 +48,7 @@ Save this as: [Title]
 ```
 
 The system will:
+
 1. Extract the title
 2. Use AI to categorize and tag the content
 3. Store the entry in the database
@@ -57,18 +59,13 @@ The system will:
 Entries can be programmatically added:
 
 ```javascript
-await knowledgeAgent.saveEntry(
-    "Title",
-    "Content",
-    "category",
-    ["tag1", "tag2"],
-    userId
-);
+await knowledgeAgent.saveEntry('Title', 'Content', 'category', ['tag1', 'tag2'], userId)
 ```
 
 ## Retrieving Information
 
 The knowledge agent retrieves information using:
+
 1. Topic extraction from user queries
 2. Semantic search on knowledge entries
 3. AI synthesis of retrieved information
@@ -91,7 +88,7 @@ Knowledge entries go through a verification process:
 4. Verified entries are prioritized in searches
 
 ```javascript
-await knowledgeAgent.verifyEntry(entryId, moderatorId);
+await knowledgeAgent.verifyEntry(entryId, moderatorId)
 ```
 
 ## Rating System
@@ -99,13 +96,14 @@ await knowledgeAgent.verifyEntry(entryId, moderatorId);
 Users can rate knowledge entries to improve quality:
 
 ```javascript
-await knowledgeAgent.rateEntry(entryId, rating, userId);
+await knowledgeAgent.rateEntry(entryId, rating, userId)
 ```
 
 Ratings are used to:
-- Prioritize high-quality content
-- Identify entries that need improvement
-- Provide feedback to contributors
+
+-   Prioritize high-quality content
+-   Identify entries that need improvement
+-   Provide feedback to contributors
 
 ## Performance Optimization
 
@@ -119,12 +117,13 @@ The knowledge base implements several optimizations:
 ## Categories
 
 Standard categories include:
-- general
-- technical
-- faq
-- tutorial
-- policy
-- guide
+
+-   general
+-   technical
+-   faq
+-   tutorial
+-   policy
+-   guide
 
 ## Usage in Discord
 
@@ -138,19 +137,21 @@ The knowledge base integrates with Discord through:
 ## Best Practices
 
 1. **Content Quality**:
-   - Be clear and concise
-   - Include code examples where relevant
-   - Use proper formatting
-   - Cite sources when applicable
+
+    - Be clear and concise
+    - Include code examples where relevant
+    - Use proper formatting
+    - Cite sources when applicable
 
 2. **Organization**:
-   - Use descriptive titles
-   - Apply relevant tags
-   - Choose the appropriate category
-   - Break complex topics into smaller entries
+
+    - Use descriptive titles
+    - Apply relevant tags
+    - Choose the appropriate category
+    - Break complex topics into smaller entries
 
 3. **Maintenance**:
-   - Regularly review and update entries
-   - Remove outdated information
-   - Merge duplicate entries
-   - Improve low-rated entries
+    - Regularly review and update entries
+    - Remove outdated information
+    - Merge duplicate entries
+    - Improve low-rated entries
