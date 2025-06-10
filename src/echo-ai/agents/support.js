@@ -106,6 +106,14 @@ Return ONLY: "support" if they need technical support, or "knowledge" if they ju
     }
 
     async process(message, userId, contextData) {
+        // Use the new technical prompt via promptService
+        const promptContext = await promptService.createContext(message, {
+            ...contextData,
+            messageType: 'technical',
+            message
+        })
+        const prompt = await promptService.getPromptForContext(promptContext)
+
         try {
             // Check if we need additional context
             const neededContext = await this.needsAdditionalContext(message, contextData)
@@ -165,17 +173,9 @@ Return ONLY: "support" if they need technical support, or "knowledge" if they ju
 
             // If no knowledge base answer or needs more specific help
             if (!response) {
-                // Create context for prompt selection
-                const supportContext = await promptService.createContext(message, {
-                    ...contextData,
-                    messageType: 'technical_support',
-                    ticketId: ticket?.id,
-                    ticketStatus: ticket?.status
-                })
-
                 // Generate standard AI response if no research needed
                 response = await this.aiModel.getResponse(message, {
-                    context: supportContext
+                    context: promptContext
                 })
             }
 

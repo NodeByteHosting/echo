@@ -25,15 +25,9 @@ export const aiConfig = {
     // Prompt file paths
     promptPaths: {
         basePath: 'd://@nodebyte/echo/prompts',
-        defaultPrompt: 'default',
-        dmPrompt: 'dm',
-        personaPrompt: 'persona',
-        entityPrompt: 'entity_mentions',
+        corePrompt: 'core',
+        conversationPrompt: 'conversation',
         technicalPrompt: 'technical',
-        knowledgePrompt: 'knowledge_synthesis',
-        researchPrompt: 'research_synthesis',
-        supportPrompt: 'technical_support',
-        codePrompt: 'code_analysis',
-        conversationPrompt: 'conversation'
+        synthesisPrompt: 'synthesis'
     }
 }

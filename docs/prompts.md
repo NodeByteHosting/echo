@@ -84,6 +84,12 @@ To create a custom template:
 3. Add variables, conditionals, and loops as needed
 4. Use the template by referencing its name (without extension)
 
+**Current supported templates:**
+- `core` — Echo's core personality, context, and relationships
+- `conversation` — Conversational and DM logic
+- `technical` — Technical support, code, and troubleshooting
+- `synthesis` — Knowledge synthesis, research, and context analysis
+
 Example of a custom template (`prompts/greeting.echo`):
 
 ```markdown
@@ -110,7 +116,8 @@ import { promptService } from '../services/prompt.service.js'
 // Create context for the prompt
 const context = await promptService.createContext(userMessage, {
     userName: user.displayName,
-    timeOfDay: 'morning'
+    timeOfDay: 'morning',
+    messageType: 'conversation' // or 'core', 'technical', 'synthesis'
 })
 
 // Get the processed prompt

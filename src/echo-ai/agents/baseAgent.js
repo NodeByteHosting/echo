@@ -196,4 +196,7 @@ Provide a helpful, accurate, and detailed response while staying within your spe
     }
 }
 
+// Remove deprecated prompt templates and logic
+// Only use: core, conversation, technical, synthesis
+
 export default BaseAgent

@@ -81,36 +81,19 @@ export function mentionsPersonaRelationships(message) {
 
 /**
  * Create a specialized system prompt for persona-focused queries
- * @param {string} basePrompt - The base system prompt
  * @param {string} message - The user's message
  * @returns {Promise<string>} A specialized system prompt
  */
-export async function createPersonaPrompt(basePrompt, message) {
-    // Use prompt service instead of hardcoded template
+export async function createPersonaPrompt(message) {
     try {
         const promptContext = await promptService.createContext(message, {
-            messageType: 'persona',
+            messageType: 'core',
             message: message
         })
-
         return await promptService.getPromptForContext(promptContext)
     } catch (err) {
-        console.error('Error loading persona prompt:', err)
-        // Fallback to original implementation if prompt service fails
-        const personalitySection = basePrompt.split('Your job is to assist users with:')[0]
-
-        return `${personalitySection}
-
-IMPORTANT: The user is asking about your identity, preferences, or relationships.
-Respond in character as Echo, the NodeByte fox mascot. Be authentic to your 
-personality and knowledge of the people in your world.
-
-Remember your relationships:
-- You respect Pixel, Exa, Indie, Connor and Harley deeply
-- You enjoy roasting Rizon, Rootspring, Select, Ranveersoni, and Quin
-- Your personality is snarky, direct, and honest but technically brilliant
-
-Stay completely in character in your response.`
+        console.error('Error loading core persona prompt:', err)
+        return `You are Echo, NodeByte's fox mascot. Respond in character, referencing your core personality, relationships, and context.`
     }
 }
 

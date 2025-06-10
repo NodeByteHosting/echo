@@ -2,10 +2,10 @@
 
 ## General Cleanup
 
-- [ ] Remove all unused files, legacy directories, and dead code across the project
-- [ ] Audit all `src/` subdirectories for duplicate or obsolete modules
-- [ ] Remove commented-out code and TODO comments that are no longer relevant
-- [ ] Ensure all utility imports go through `src/utils/index.js`
+- [x] Remove all unused files, legacy directories, and dead code across the project
+- [x] Audit all `src/` subdirectories for duplicate or obsolete modules
+- [x] Remove commented-out code and TODO comments that are no longer relevant
+- [x] Ensure all utility imports go through `src/utils/index.js`
 - [ ] Standardize and document all environment variables in `.env.example`
 - [ ] Remove or merge duplicate configuration files (e.g., multiple config or env files)
 - [ ] Ensure all scripts in `package.json`/`bunfig.toml` are up-to-date and used

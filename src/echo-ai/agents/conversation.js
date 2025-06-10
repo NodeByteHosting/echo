@@ -165,27 +165,16 @@ Return JSON only in this format: {"style":"value","intent":"value","format":"val
         return this.smartSplit(response)
     }
     async _buildConversationPrompt(message, history, messageContext, contextData) {
-        let prompt = aiConfig.systemPrompt
-
-        if (messageContext.useContext && contextData) {
-            prompt += '\n\nContext:\n' + JSON.stringify(contextData)
-        }
-
-        if (messageContext.useContext && history.length > 0) {
-            prompt +=
-                '\n\nConversation History:\n' +
-                history
-                    .slice(-3) // Last 3 messages for context
-                    .map(h => `${h.role}: ${h.content}`)
-                    .join('\n')
-        }
-
-        prompt += `\n\nStyle Guide:
-- Conversation Style: ${messageContext.style}
-- User Intent: ${messageContext.intent}
-- Response Format: ${messageContext.format}`
-
-        return prompt
+        // Use the new conversation prompt via promptService
+        const promptContext = await promptService.createContext(message, {
+            ...contextData,
+            messageType: 'conversation',
+            history,
+            style: messageContext.style,
+            intent: messageContext.intent,
+            format: messageContext.format
+        })
+        return await promptService.getPromptForContext(promptContext)
     }
 
     _smartSplit(response) {

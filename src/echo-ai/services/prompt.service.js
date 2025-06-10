@@ -136,6 +136,13 @@ class PromptService {
      * @returns {Promise<string>} The processed prompt
      */
     async getPromptForContext(context) {
+        // Only allow new prompt names
+        const allowedPrompts = ['core', 'conversation', 'technical', 'synthesis']
+        const promptName = context.messageType
+        if (!allowedPrompts.includes(promptName)) {
+            throw new Error('Invalid or deprecated prompt requested: ' + promptName)
+        }
+
         // Generate a cache key based on relevant context data
         const cacheKey = this._generatePromptCacheKey(context)
 
@@ -144,9 +151,6 @@ class PromptService {
         if (cachedPrompt) {
             return cachedPrompt
         }
-
-        // Determine which prompt to use based on context
-        const promptName = this._determinePromptName(context)
 
         // Get the prompt template
         let template = await this.getPrompt(promptName)

@@ -11,14 +11,12 @@ export { safeJsonParse, extractJsonFromText, makeSerializable, safeStringify } f
 // Export error handling utilities
 export { ErrorType, createErrorResponse, handleProcessingError, withTimeout } from './errorHandler.js'
 
-// Export prompt utilities
+// Export prompt utilities (all prompt/template logic now uses promptService)
 export {
-    loadPromptTemplate,
-    buildPrompt,
+    buildPrompt, // Deprecated
     createContextPrompt,
-    enhancePromptWithContext,
-    definePromptCategories,
-    createDynamicPrompt
+    createDynamicPrompt,
+    definePromptCategories
 } from './dynamicPromptBuilder.js'
 
 // Other utility exports

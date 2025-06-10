@@ -111,6 +111,10 @@ export class AIModel {
      * @returns {Promise<string>} Processed template
      */
     async getPromptForTemplate(template, context = {}) {
+        // Only allow new prompt names
+        if (!['core', 'conversation', 'technical', 'synthesis'].includes(template)) {
+            throw new Error('Invalid or deprecated prompt template requested: ' + template)
+        }
         return promptService.getPromptForContext({
             ...context,
             messageType: template
