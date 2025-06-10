@@ -44,36 +44,36 @@ Loops can iterate over arrays of data:
 
 ## Available Templates
 
-| Template Name | Purpose | Core Variables |
-|---------------|---------|---------------|
-| `default` | Default system prompt | `guildName`, `channelName`, `userName`, `isDM` |
-| `dm` | Used for direct messages | `userName` |
-| `persona` | For questions about Echo itself | `userName`, `guildName`, `channelName` |
-| `entity_mentions` | When users/channels are mentioned | `detectedEntities` |
-| `technical` | Technical mode focused on accuracy | `userName`, `guildName`, `channelName` |
-| `knowledge_synthesis` | Knowledge base information synthesis | `message`, `userName` |
-| `research_synthesis` | Web research synthesis | `message`, `userName` |
-| `technical_support` | Technical issue resolution | `message`, `userName`, `guildName`, `channelName` |
-| `code_analysis` | Code review and analysis | `message`, `userName` |
-| `conversation` | General conversation | `message`, `userName`, `messageStyle`, `messageIntent`, `messageFormat` |
-| `context_determination` | Determines required context | `message`, `userName` |
+| Template Name           | Purpose                              | Core Variables                                                          |
+| ----------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
+| `default`               | Default system prompt                | `guildName`, `channelName`, `userName`, `isDM`                          |
+| `dm`                    | Used for direct messages             | `userName`                                                              |
+| `persona`               | For questions about Echo itself      | `userName`, `guildName`, `channelName`                                  |
+| `entity_mentions`       | When users/channels are mentioned    | `detectedEntities`                                                      |
+| `technical`             | Technical mode focused on accuracy   | `userName`, `guildName`, `channelName`                                  |
+| `knowledge_synthesis`   | Knowledge base information synthesis | `message`, `userName`                                                   |
+| `research_synthesis`    | Web research synthesis               | `message`, `userName`                                                   |
+| `technical_support`     | Technical issue resolution           | `message`, `userName`, `guildName`, `channelName`                       |
+| `code_analysis`         | Code review and analysis             | `message`, `userName`                                                   |
+| `conversation`          | General conversation                 | `message`, `userName`, `messageStyle`, `messageIntent`, `messageFormat` |
+| `context_determination` | Determines required context          | `message`, `userName`                                                   |
 
 ## Core Context Variables
 
 The following variables are available in most templates:
 
-| Variable | Description |
-|----------|-------------|
-| `message` | The user's message |
-| `userName` | Username of the message author |
-| `userId` | ID of the message author |
-| `guildName` | Name of the Discord server |
-| `channelName` | Name of the Discord channel |
-| `isDM` | Boolean indicating if this is a direct message |
-| `platform` | Platform name (usually "discord") |
-| `timestamp` | ISO timestamp of when the message was processed |
+| Variable           | Description                                         |
+| ------------------ | --------------------------------------------------- |
+| `message`          | The user's message                                  |
+| `userName`         | Username of the message author                      |
+| `userId`           | ID of the message author                            |
+| `guildName`        | Name of the Discord server                          |
+| `channelName`      | Name of the Discord channel                         |
+| `isDM`             | Boolean indicating if this is a direct message      |
+| `platform`         | Platform name (usually "discord")                   |
+| `timestamp`        | ISO timestamp of when the message was processed     |
 | `detectedEntities` | Array of detected entities (users, channels, roles) |
-| `messageType` | Type of message being processed |
+| `messageType`      | Type of message being processed                     |
 
 ## Creating Custom Templates
 
@@ -90,10 +90,12 @@ Example of a custom template (`prompts/greeting.echo`):
 # Echo - Greeting Mode
 
 ## Context
-- User: {{userName}}
-- Time: {{timestamp}}
+
+-   User: {{userName}}
+-   Time: {{timestamp}}
 
 ## Instructions
+
 Greet the user in a friendly way that matches Echo's personality.
 {{#if timeOfDay}}Reference that it's currently {{timeOfDay}}.{{/if}}
 ```
@@ -124,9 +126,9 @@ const response = await aiModel.getResponse(userMessage, {
 
 Administrators can manage prompts using the `/system prompts` command:
 
-- `/system prompts list` - List all available prompt templates
-- `/system prompts view <name>` - View the content of a specific template
-- `/system prompts reload` - Reload all templates from disk (clears cache)
+-   `/system prompts list` - List all available prompt templates
+-   `/system prompts view <name>` - View the content of a specific template
+-   `/system prompts reload` - Reload all templates from disk (clears cache)
 
 ## Best Practices
 
@@ -146,20 +148,24 @@ Here's how to create a prompt for a custom agent:
 # Echo - Custom Agent Mode
 
 ## About Echo
+
 Echo is a snarky fox mascot with technical expertise.
 
 ## Task Definition
+
 Echo is currently acting as a {{agentType}} to help with {{taskDescription}}.
 
 ## Context
-- Query: {{message}}
-- User: {{userName}}
+
+-   Query: {{message}}
+-   User: {{userName}}
 
 ## Agent Guidelines
-- Provide expert assistance in {{domain}}
-- Focus on {{priority}} while maintaining Echo's personality
-- Include {{format}} in your response when appropriate
-- Always {{requirement}} in your answers
+
+-   Provide expert assistance in {{domain}}
+-   Focus on {{priority}} while maintaining Echo's personality
+-   Include {{format}} in your response when appropriate
+-   Always {{requirement}} in your answers
 
 Be {{trait1}}, {{trait2}}, and {{trait3}} while helping the user.
 ```

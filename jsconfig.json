@@ -5,41 +5,18 @@
         "moduleResolution": "Node",
         "baseUrl": "./",
         "paths": {
-            "@/*": [
-                "./*"
-            ],
-            "@ai/*": [
-                "src/echo-ai/*"
-            ],
-            "@classes/*": [
-                "src/class/*"
-            ],
-            "@configs/*": [
-                "src/configs/*"
-            ],
-            "@database/*": [
-                "src/database/*"
-            ],
-            "@functions/*": [
-                "src/functions/*"
-            ],
-            "@handlers/*": [
-                "src/handlers/*"
-            ],
-            "@utils/*": [
-                "src/utils/*"
-            ]
+            "@/*": ["./*"],
+            "@ai/*": ["src/echo-ai/*"],
+            "@classes/*": ["src/class/*"],
+            "@configs/*": ["src/configs/*"],
+            "@database/*": ["src/database/*"],
+            "@functions/*": ["src/functions/*"],
+            "@handlers/*": ["src/handlers/*"],
+            "@utils/*": ["src/utils/*"]
         },
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true
     },
-    "include": [
-        "src/**/*.js",
-        "prompts/**/*.echo",
-        "prompts/**/*.md",
-        "prompts/**/*.txt",
-    ],
-    "exclude": [
-        "node_modules"
-    ]
+    "include": ["src/**/*.js", "prompts/**/*.echo", "prompts/**/*.md", "prompts/**/*.txt"],
+    "exclude": ["node_modules"]
 }

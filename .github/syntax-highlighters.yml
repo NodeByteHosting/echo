@@ -1,10 +1,10 @@
 files:
-  ".echo":
-    type: markdown
-    color-scheme: github-light
-  ".md":
-    type: markdown
-    color-scheme: github-light
-  ".txt":
-    type: text
-    color-scheme: github-light
+    '.echo':
+        type: markdown
+        color-scheme: github-light
+    '.md':
+        type: markdown
+        color-scheme: github-light
+    '.txt':
+        type: text
+        color-scheme: github-light

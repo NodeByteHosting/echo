@@ -72,12 +72,12 @@ Echo uses a dynamic, file-based prompt system that significantly enhances its fl
 
 ### Key Features
 
-- **Template-Based**: Prompts are stored as template files with the `.echo` extension
-- **Context-Aware**: Templates can include variables, conditionals, and loops
-- **Centralized Management**: All prompts are managed by the `promptService`
-- **Extensible**: New templates can be added without code changes
-- **Versioned**: Templates are stored in version control for tracking changes
-- **Hot-Reloadable**: Templates can be reloaded without restarting the service
+-   **Template-Based**: Prompts are stored as template files with the `.echo` extension
+-   **Context-Aware**: Templates can include variables, conditionals, and loops
+-   **Centralized Management**: All prompts are managed by the `promptService`
+-   **Extensible**: New templates can be added without code changes
+-   **Versioned**: Templates are stored in version control for tracking changes
+-   **Hot-Reloadable**: Templates can be reloaded without restarting the service
 
 ### Prompt Selection Logic
 

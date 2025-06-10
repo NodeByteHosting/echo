@@ -1,2 +1,23 @@
+# Define .echo files as Markdown for syntax highlighting
 *.echo linguist-language=Markdown
 *.echo linguist-detectable=true
+
+# Handle line endings
+* text=auto eol=lf
+
+# Treat echo prompts as documentation
+src/echo-ai/prompts/*.echo linguist-documentation=false
+
+# Exclude these directories from language statistics
+assets/* linguist-vendored
+node_modules/* linguist-vendored
+
+# Set specific file types
+*.js text
+*.ts text
+*.json text
+*.md text
+*.txt text
+*.yml text
+*.yaml text
+*.prisma text
