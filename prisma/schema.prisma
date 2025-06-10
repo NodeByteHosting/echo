@@ -111,16 +111,15 @@ model AuditLog {
 }
 
 model Guild {
-    id          String         @id
-    name        String
-    beta        Boolean?       @default(false)
-    premium     Boolean?       @default(false)
-    banned      Boolean?       @default(false)
-    features    GuildFeatures?
-    createdAt   DateTime       @default(now())
-    updatedAt   DateTime       @updatedAt
-    GuildRoles  GuildRoles?
-    GuildAudits GuildAudits?
+    id         String         @id
+    name       String
+    beta       Boolean?       @default(false)
+    premium    Boolean?       @default(false)
+    banned     Boolean?       @default(false)
+    features   GuildFeatures?
+    createdAt  DateTime       @default(now())
+    updatedAt  DateTime       @updatedAt
+    GuildRoles GuildRoles?
 }
 
 model GuildFeatures {
@@ -128,6 +127,7 @@ model GuildFeatures {
     guild      Guild         @relation(fields: [id], references: [id])
     echoAi     Boolean?      @default(true)
     moderation Boolean?      @default(false)
+    audits     GuildAudits?
     tickets    GuildTickets?
     gate       GuildGates?
 }
@@ -161,12 +161,21 @@ model GuildRoles {
 }
 
 model GuildAudits {
-    id          String       @id
-    audits      Boolean?     @default(false)
-    tickets     Boolean?     @default(false)
+    id       String         @id
+    system   Boolean?       @default(false)
+    tickets  Boolean?       @default(false)
+    channels AuditChannels?
+
     auditEvents AuditEvent[]
 
-    guildConfig Guild @relation(fields: [id], references: [id])
+    guildConfig GuildFeatures @relation(fields: [id], references: [id])
+}
+
+model AuditChannels {
+    id      String      @id
+    system  String?
+    tickets String?
+    guild   GuildAudits @relation(fields: [id], references: [id])
 }
 
 model User {
