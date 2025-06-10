@@ -9,14 +9,14 @@ This document describes the shared utility functions available for use throughou
 The `CacheManager` provides efficient caching with metrics:
 
 ```javascript
-import { responseCache, knowledgeCache, createCache } from '../utils';
+import { responseCache, knowledgeCache, createCache } from '../utils'
 
 // Use predefined caches
-responseCache.set('response:query', value);
-const cachedValue = knowledgeCache.get('kb:topic');
+responseCache.set('response:query', value)
+const cachedValue = knowledgeCache.get('kb:topic')
 
 // Create custom cache
-const myCache = createCache({ maxSize: 100, ttl: 60000 });
+const myCache = createCache({ maxSize: 100, ttl: 60000 })
 ```
 
 ### JSON Handling
@@ -24,16 +24,16 @@ const myCache = createCache({ maxSize: 100, ttl: 60000 });
 Safe JSON utilities to prevent errors:
 
 ```javascript
-import { safeJsonParse, extractJsonFromText, makeSerializable } from '../utils';
+import { safeJsonParse, extractJsonFromText, makeSerializable } from '../utils'
 
 // Safe parsing with fallback
-const data = safeJsonParse(text, { fallback: 'value' });
+const data = safeJsonParse(text, { fallback: 'value' })
 
 // Extract JSON from text that may contain other content
-const jsonData = extractJsonFromText(aiResponse);
+const jsonData = extractJsonFromText(aiResponse)
 
 // Make objects safe for serialization (handles BigInt, circular refs)
-const serializable = makeSerializable(complexObject);
+const serializable = makeSerializable(complexObject)
 ```
 
 ### Error Handling
@@ -41,22 +41,22 @@ const serializable = makeSerializable(complexObject);
 Standardized error handling:
 
 ```javascript
-import { ErrorType, createErrorResponse, handleProcessingError } from '../utils';
+import { ErrorType, createErrorResponse, handleProcessingError } from '../utils'
 
 try {
-  // Your code
+    // Your code
 } catch (error) {
-  return handleProcessingError(error, context, 'componentName');
+    return handleProcessingError(error, context, 'componentName')
 }
 ```
 
 ### Promise Utilities
 
 ```javascript
-import { withTimeout } from '../utils';
+import { withTimeout } from '../utils'
 
 // Prevent hanging on slow external services
-const result = await withTimeout(apiCall(), 5000, 'API request');
+const result = await withTimeout(apiCall(), 5000, 'API request')
 ```
 
 ## Best Practices
@@ -78,7 +78,7 @@ When adding new utility functions:
 
 ## Performance Considerations
 
-- Use the `memoize` utility for expensive, frequently-called functions with stable inputs
-- Set appropriate TTL values for cached items based on data volatility
-- Consider memory usage when caching large objects
-- Use the built-in metrics to monitor cache performance
+-   Use the `memoize` utility for expensive, frequently-called functions with stable inputs
+-   Set appropriate TTL values for cached items based on data volatility
+-   Consider memory usage when caching large objects
+-   Use the built-in metrics to monitor cache performance

@@ -194,9 +194,9 @@ src/
 
 ### File Naming Conventions
 
-- Use lowercase with underscores for multi-word names
-- Name files based on their purpose or context
-- Use descriptive names that clearly indicate the prompt's function
+-   Use lowercase with underscores for multi-word names
+-   Name files based on their purpose or context
+-   Use descriptive names that clearly indicate the prompt's function
 
 ## Prompt Format
 
@@ -206,37 +206,39 @@ Prompts use a Markdown-based format with Handlebars-style templating:
 # Title of Prompt
 
 ## Section Heading
+
 Content with {{variable}} placeholders
 
 {{#if condition}}
-  Conditional content
+Conditional content
 {{else}}
-  Alternative content
+Alternative content
 {{/if}}
 
 {{#each items}}
-  - Item: {{name}}
-{{/each}}
+
+-   Item: {{name}}
+    {{/each}}
 ```
 
 ### Variables
 
-- `{{variableName}}` - Simple variable substitution
-- `{{#if variableName}}...{{/if}}` - Conditional blocks
-- `{{#if variableName}}...{{else}}...{{/if}}` - Conditional with alternative
-- `{{#each arrayName}}...{{/each}}` - Iteration over arrays
+-   `{{variableName}}` - Simple variable substitution
+-   `{{#if variableName}}...{{/if}}` - Conditional blocks
+-   `{{#if variableName}}...{{else}}...{{/if}}` - Conditional with alternative
+-   `{{#each arrayName}}...{{/each}}` - Iteration over arrays
 
 ## Common Context Variables
 
 These variables are available in most prompt contexts:
 
-- `message` - The user's message
-- `userName` - User's display name
-- `guildName` - Discord server name (if applicable)
-- `channelName` - Channel name (if applicable)
-- `isDM` - Boolean indicating if this is a direct message
-- `timestamp` - Current timestamp
-- `detectedEntities` - Array of detected entities (users, channels, etc.)
+-   `message` - The user's message
+-   `userName` - User's display name
+-   `guildName` - Discord server name (if applicable)
+-   `channelName` - Channel name (if applicable)
+-   `isDM` - Boolean indicating if this is a direct message
+-   `timestamp` - Current timestamp
+-   `detectedEntities` - Array of detected entities (users, channels, etc.)
 
 ## Creating New Prompts
 
@@ -247,11 +249,11 @@ These variables are available in most prompt contexts:
 
 ## Best Practices
 
-- Keep prompts modular and focused on specific use cases
-- Use consistent formatting and organization
-- Include clear instructions for the AI model
-- Prefer conditional blocks over duplicating content
-- Test prompts with different inputs to ensure they work correctly
+-   Keep prompts modular and focused on specific use cases
+-   Use consistent formatting and organization
+-   Include clear instructions for the AI model
+-   Prefer conditional blocks over duplicating content
+-   Test prompts with different inputs to ensure they work correctly
 
 ## Example Prompt
 
@@ -259,9 +261,10 @@ These variables are available in most prompt contexts:
 # Knowledge Query Prompt
 
 ## Context Information
-- Query: {{message}}
-- User: {{userName}}
-- Time: {{timestamp}}
+
+-   Query: {{message}}
+-   User: {{userName}}
+-   Time: {{timestamp}}
 
 {{#if isDM}}
 This is a direct message conversation.
@@ -271,15 +274,19 @@ Channel: {{channelName}}
 {{/if}}
 
 ## Response Guidelines
-- Provide accurate information
-- Be concise but thorough
-- Use Echo's direct communication style
-- Include examples where helpful
+
+-   Provide accurate information
+-   Be concise but thorough
+-   Use Echo's direct communication style
+-   Include examples where helpful
 
 {{#if knowledgeResults}}
+
 ## Available Knowledge
+
 {{#each knowledgeResults}}
-- {{title}}: {{summary}}
-{{/each}}
-{{/if}}
+
+-   {{title}}: {{summary}}
+    {{/each}}
+    {{/if}}
 ```
