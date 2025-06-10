@@ -7,105 +7,71 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-    USER
-    SUPPORT_AGENT
-    MODERATOR
-    DEVELOPER
-    ADMIN
+/**
+ * ========================================================
+ * ----------------- DATABASE MODELS ----------------------
+ * ========================================================
+ */
+model Echo {
+    id            String          @id @default("echobot")
+    modelSettings EchoModels      @relation(fields: [id], references: [id], map: "Echo_modelSettings_fkey")
+    maintSettings EchoMaintenance @relation(fields: [id], references: [id], map: "Echo_maintSettings_fkey")
+    coreSettings  EchoSettings    @relation(fields: [id], references: [id], map: "Echo_coreSettings_fkey")
+    coreBranding  EchoBranding    @relation(fields: [id], references: [id], map: "Echo_coreBranding_fkey")
+    coreFeatures  EchoFeatures    @relation(fields: [id], references: [id], map: "Echo_coreFeatures_fkey")
+    createdAt     DateTime        @default(now())
+    updatedAt     DateTime        @updatedAt
+    updatedBy     BigInt
 }
 
-enum TicketStatus {
-    OPEN
-    IN_PROGRESS
-    RESOLVED
-    CLOSED
-    ESCALATED
+model EchoModels {
+    id             String   @id @default("echomodels")
+    default        String   @default("gpt-4.1.-nano")
+    allowed        String[] @default(["gpt-4.1-nano", "gpt-3.5-turbo"])
+    enabled        Boolean  @default(true)
+    disabledReason String   @db.Text
+    Echo           Echo[]
 }
 
-enum Permission {
-    // Ticket System
-    CREATE_TICKET
-    VIEW_TICKET
-    CLOSE_TICKET
-    ASSIGN_TICKET
-    MANAGE_TICKETS
-    ESCALATE_TICKET
-    VIEW_ALL_TICKETS
-
-    // User Management
-    BAN_USER
-    UNBAN_USER
-    WARN_USER
-    MANAGE_ROLES
-    VIEW_USER_INFO
-    MANAGE_USER_PROFILE
-
-    // Knowledge Base
-    VIEW_KB
-    CREATE_KB
-    EDIT_KB
-    DELETE_KB
-    VERIFY_KB
-
-    // System Commands
-    VIEW_SYSTEM_STATUS
-    VIEW_METRICS
-    MANAGE_BOT_SETTINGS
-
-    // Support System
-    PROVIDE_SUPPORT
-    VIEW_SUPPORT_QUEUE
-    MANAGE_SUPPORT_AGENTS
-
-    // Moderation
-    DELETE_MESSAGES
-    TIMEOUT_USER
-    VIEW_AUDIT_LOGS
-    MANAGE_THREADS
-
-    // Server Management
-    MANAGE_PTERODACTYL
-    VIEW_SERVER_STATUS
-    RESTART_SERVERS
-    MODIFY_SERVER_CONFIG
+model EchoMaintenance {
+    id      String  @id @default("echomaintenance")
+    enabled Boolean @default(false)
+    reason  String? @db.Text
+    Echo    Echo[]
 }
 
-enum TransactionType {
-    PURCHASE
-    SALE
-    REWARD
-    TRANSFER
-    DAILY
-    WEEKLY
-    WORK
+model EchoSettings {
+    id                    String @id @default("echosettings")
+    logLevel              String @default("info")
+    logChannel            String @default("1381758551927820288")
+    supportGuild          String @default("1240063050581676143")
+    maxConcurrentRequests Int?   @default(10)
+    responseCacheSize     Int    @default(500)
+    knowledgeCacheTTL     Int    @default(1800)
+    rateLimit             Int?   @default(60)
+    dbPoolSize            Int?   @default(10)
+    Echo                  Echo[]
 }
 
-enum ItemType {
-    BADGE
-    ROLE
-    BACKGROUND
-    COLLECTIBLE
-    CONSUMABLE
-    SPECIAL
+model EchoBranding {
+    id     String  @id @default("echobranding")
+    logo   String? @default("https://codemeapixel.dev/echobot/EchoChilling.png")
+    color  String? @default("#7289DA")
+    footer String? @default("© 2025 - NodeByte LTD")
+    Echo   Echo[]
 }
 
-enum AchievementType {
-    MESSAGES
-    TICKETS
-    HELP
-    MODERATION
-    SPECIAL
-}
-
-enum AuditEvent {
-    MESSAGE_EVENTS
-    MEMBER_EVENTS
-    CHANNEL_EVENTS
-    ROLE_EVENTS
-    MOD_EVENTS
-    VOICE_EVENTS
-    THREAD_EVENTS
+model EchoFeatures {
+    id         String  @id @default("echofeatures")
+    echoAi     Boolean @default(true)
+    msgCmds    Boolean @default(true)
+    slashCmds  Boolean @default(true)
+    tickets    Boolean @default(true)
+    moderation Boolean @default(true)
+    directMsgs Boolean @default(true)
+    twitterApi Boolean @default(false)
+    githubApi  Boolean @default(false)
+    Echo       Echo[]
 }
 
 model AuditLog {
@@ -371,4 +337,110 @@ model KnowledgeBase {
     @@index([tags])
     @@index([category])
     @@index([createdBy])
+}
+
+/**
+ * ========================================================
+ * ----------------- DATABASE ENUMS -----------------------
+ * ========================================================
+ */
+enum UserRole {
+    USER
+    SUPPORT_AGENT
+    MODERATOR
+    DEVELOPER
+    ADMIN
+}
+
+enum TicketStatus {
+    OPEN
+    IN_PROGRESS
+    RESOLVED
+    CLOSED
+    ESCALATED
+}
+
+enum Permission {
+    // Ticket System
+    CREATE_TICKET
+    VIEW_TICKET
+    CLOSE_TICKET
+    ASSIGN_TICKET
+    MANAGE_TICKETS
+    ESCALATE_TICKET
+    VIEW_ALL_TICKETS
+
+    // User Management
+    BAN_USER
+    UNBAN_USER
+    WARN_USER
+    MANAGE_ROLES
+    VIEW_USER_INFO
+    MANAGE_USER_PROFILE
+
+    // Knowledge Base
+    VIEW_KB
+    CREATE_KB
+    EDIT_KB
+    DELETE_KB
+    VERIFY_KB
+
+    // System Commands
+    VIEW_SYSTEM_STATUS
+    VIEW_METRICS
+    MANAGE_BOT_SETTINGS
+
+    // Support System
+    PROVIDE_SUPPORT
+    VIEW_SUPPORT_QUEUE
+    MANAGE_SUPPORT_AGENTS
+
+    // Moderation
+    DELETE_MESSAGES
+    TIMEOUT_USER
+    VIEW_AUDIT_LOGS
+    MANAGE_THREADS
+
+    // Server Management
+    MANAGE_PTERODACTYL
+    VIEW_SERVER_STATUS
+    RESTART_SERVERS
+    MODIFY_SERVER_CONFIG
+}
+
+enum TransactionType {
+    PURCHASE
+    SALE
+    REWARD
+    TRANSFER
+    DAILY
+    WEEKLY
+    WORK
+}
+
+enum ItemType {
+    BADGE
+    ROLE
+    BACKGROUND
+    COLLECTIBLE
+    CONSUMABLE
+    SPECIAL
+}
+
+enum AchievementType {
+    MESSAGES
+    TICKETS
+    HELP
+    MODERATION
+    SPECIAL
+}
+
+enum AuditEvent {
+    MESSAGE_EVENTS
+    MEMBER_EVENTS
+    CHANNEL_EVENTS
+    ROLE_EVENTS
+    MOD_EVENTS
+    VOICE_EVENTS
+    THREAD_EVENTS
 }

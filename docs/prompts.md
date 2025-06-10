@@ -85,10 +85,11 @@ To create a custom template:
 4. Use the template by referencing its name (without extension)
 
 **Current supported templates:**
-- `core` — Echo's core personality, context, and relationships
-- `conversation` — Conversational and DM logic
-- `technical` — Technical support, code, and troubleshooting
-- `synthesis` — Knowledge synthesis, research, and context analysis
+
+-   `core` — Echo's core personality, context, and relationships
+-   `conversation` — Conversational and DM logic
+-   `technical` — Technical support, code, and troubleshooting
+-   `synthesis` — Knowledge synthesis, research, and context analysis
 
 Example of a custom template (`prompts/greeting.echo`):
 
