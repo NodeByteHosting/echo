@@ -26,31 +26,49 @@ model Echo {
 
 model EchoModels {
     id             String   @id @default("echomodels")
-    default        String   @default("gpt-4.1.-nano")
+    default        String?  @default("gpt-4.1.-nano")
     allowed        String[] @default(["gpt-4.1-nano", "gpt-3.5-turbo"])
-    enabled        Boolean  @default(true)
+    enabled        Boolean? @default(true)
     disabledReason String   @db.Text
     Echo           Echo[]
+}
+
+model EchoPrompts {
+    id        String  @id @default("echoprompts")
+    short     String? @default("You're Echo, NodeByte's snarky fox assistant. Be helpful, technical, and a bit sarcastic.") @db.Text
+    system    String? @default("You are Echo, NodeByte's fox assistant. Be helpful, technical, and a bit sarcastic.") @db.Text
+    technical String? @default("You're Echo, NodeByte's technical assistant. Focus on accuracy for technical topics.") @db.Text
+}
+
+model EchoPerformance {
+    id                    String   @id @default("echooptimization")
+    useCache              Boolean? @default(false)
+    cacheTTL              Int?     @default(3600)
+    prioritizeSpeed       Boolean? @default(true)
+    smartTokenBudgeting   Boolean? @default(true)
+    maxConcurrentRequests Boolean? @default(true)
+    responseCacheSize     Int?     @default(500)
+    knowledgeCacheTTL     Int?     @default(1800)
+    useRateLimit          Boolean? @default(false)
+    rateLimitTime         Int?     @default(60)
+    dbPoolSize            Int?     @default(10)
 }
 
 model EchoMaintenance {
     id      String  @id @default("echomaintenance")
     enabled Boolean @default(false)
     reason  String? @db.Text
+    admin   Json?
     Echo    Echo[]
 }
 
 model EchoSettings {
-    id                    String @id @default("echosettings")
-    logLevel              String @default("info")
-    logChannel            String @default("1381758551927820288")
-    supportGuild          String @default("1240063050581676143")
-    maxConcurrentRequests Int?   @default(10)
-    responseCacheSize     Int    @default(500)
-    knowledgeCacheTTL     Int    @default(1800)
-    rateLimit             Int?   @default(60)
-    dbPoolSize            Int?   @default(10)
-    Echo                  Echo[]
+    id           String  @id @default("echosettings")
+    logLevel     String? @default("info")
+    logChannel   String? @default("1381758551927820288")
+    supportGuild String? @default("1240063050581676143")
+    supportEmail String? @default("support@nodebyte.co.uk")
+    Echo         Echo[]
 }
 
 model EchoBranding {
@@ -62,15 +80,15 @@ model EchoBranding {
 }
 
 model EchoFeatures {
-    id         String  @id @default("echofeatures")
-    echoAi     Boolean @default(true)
-    msgCmds    Boolean @default(true)
-    slashCmds  Boolean @default(true)
-    tickets    Boolean @default(true)
-    moderation Boolean @default(true)
-    directMsgs Boolean @default(true)
-    twitterApi Boolean @default(false)
-    githubApi  Boolean @default(false)
+    id         String   @id @default("echofeatures")
+    echoAi     Boolean? @default(true)
+    msgCmds    Boolean? @default(true)
+    slashCmds  Boolean? @default(true)
+    tickets    Boolean? @default(true)
+    moderation Boolean? @default(true)
+    directMsgs Boolean? @default(true)
+    twitterApi Boolean? @default(false)
+    githubApi  Boolean? @default(false)
     Echo       Echo[]
 }
 
@@ -92,20 +110,63 @@ model AuditLog {
     @@index([createdAt])
 }
 
-model GuildConfig {
-    id                 String       @id
-    name               String
-    logChannelId       String?
-    modLogChannelId    String?
-    supportCategoryId  String?
-    ticketLogChannelId String?
-    welcomeChannelId   String?
-    modRoleId          String?
-    adminRoleId        String?
-    supportRoleId      String?
-    auditEvents        AuditEvent[]
-    createdAt          DateTime     @default(now())
-    updatedAt          DateTime     @updatedAt
+model Guild {
+    id          String         @id
+    name        String
+    beta        Boolean?       @default(false)
+    premium     Boolean?       @default(false)
+    banned      Boolean?       @default(false)
+    features    GuildFeatures?
+    createdAt   DateTime       @default(now())
+    updatedAt   DateTime       @updatedAt
+    GuildRoles  GuildRoles?
+    GuildAudits GuildAudits?
+}
+
+model GuildFeatures {
+    id         String        @id
+    guild      Guild         @relation(fields: [id], references: [id])
+    echoAi     Boolean?      @default(true)
+    moderation Boolean?      @default(false)
+    tickets    GuildTickets?
+    gate       GuildGates?
+}
+
+model GuildGates {
+    id         String   @id
+    enabled    Boolean? @default(false)
+    channel    String?
+    logChannel String?
+
+    guildFeatures GuildFeatures @relation(fields: [id], references: [id])
+}
+
+model GuildTickets {
+    id         String   @id
+    enabled    Boolean? @default(false)
+    categoryId String?
+    auditId    String?
+
+    guildFeatures GuildFeatures @relation(fields: [id], references: [id])
+}
+
+model GuildRoles {
+    id             String  @id
+    adminRole      String?
+    modRole        String?
+    gatekeeperRole String?
+    supportRole    String?
+    memberRole     String?
+    guildConfig    Guild   @relation(fields: [id], references: [id])
+}
+
+model GuildAudits {
+    id          String       @id
+    audits      Boolean?     @default(false)
+    tickets     Boolean?     @default(false)
+    auditEvents AuditEvent[]
+
+    guildConfig Guild @relation(fields: [id], references: [id])
 }
 
 model User {
@@ -436,6 +497,7 @@ enum AchievementType {
 }
 
 enum AuditEvent {
+    ECHO_EVENTS
     MESSAGE_EVENTS
     MEMBER_EVENTS
     CHANNEL_EVENTS
