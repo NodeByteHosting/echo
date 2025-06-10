@@ -1,147 +1,84 @@
-# Utility Functions
+# Echo Utility Library
 
-Echo uses various utility functions to enhance functionality, improve performance, and maintain code quality. This document covers the key utilities available in the codebase.
+This document describes the shared utility functions available for use throughout the application. Using these shared utilities ensures consistent behavior and reduces code duplication.
 
-## Table of Contents
+## Available Utilities
 
--   [Persona Manager](#persona-manager)
--   [Serialization](#serialization)
--   [Performance Optimization](#performance-optimization)
--   [Permission Management](#permission-management)
+### Cache Management
 
-## Persona Manager
-
-The Persona Manager (`personaManager.js`) handles Echo's personality and character interactions, particularly for detecting and resolving mentions of known individuals.
-
-### Key Functions
-
-#### `isPersonaQuery(message)`
-
-Determines if a message is asking about Echo's identity or personality.
+The `CacheManager` provides efficient caching with metrics:
 
 ```javascript
-const isAboutEcho = isPersonaQuery('Who are you?') // Returns true
+import { responseCache, knowledgeCache, createCache } from '../utils';
+
+// Use predefined caches
+responseCache.set('response:query', value);
+const cachedValue = knowledgeCache.get('kb:topic');
+
+// Create custom cache
+const myCache = createCache({ maxSize: 100, ttl: 60000 });
 ```
 
-#### `mentionsPersonaRelationships(message)`
+### JSON Handling
 
-Checks if a message mentions specific people from Echo's relationships.
+Safe JSON utilities to prevent errors:
 
 ```javascript
-const mentionsPerson = mentionsPersonaRelationships('What do you think of Pixel?') // Returns true
+import { safeJsonParse, extractJsonFromText, makeSerializable } from '../utils';
+
+// Safe parsing with fallback
+const data = safeJsonParse(text, { fallback: 'value' });
+
+// Extract JSON from text that may contain other content
+const jsonData = extractJsonFromText(aiResponse);
+
+// Make objects safe for serialization (handles BigInt, circular refs)
+const serializable = makeSerializable(complexObject);
 ```
 
-#### `detectAndResolvePeople(message, guild)`
+### Error Handling
 
-Identifies mentions of known individuals in a message and resolves them to Discord guild members.
-
-```javascript
-const peopleDetection = await detectAndResolvePeople('Is Pixel around?', guild)
-console.log(peopleDetection.mentions) // Array of detected people with guild member info
-```
-
-#### `formatPeopleMentions(detectedPeople, mentionAll)`
-
-Formats detected people as Discord mentions.
+Standardized error handling:
 
 ```javascript
-const mentions = formatPeopleMentions(detectedPeople)
-message.reply(`${mentions} has been mentioned`)
-```
+import { ErrorType, createErrorResponse, handleProcessingError } from '../utils';
 
-### Known Individuals
-
-Echo knows about several individuals with special relationships:
-
-| Name        | Role              | Relationship        |
-| ----------- | ----------------- | ------------------- |
-| Pixel       | Creator           | Deep respect        |
-| Exa         | Co-creator        | Deep respect        |
-| Connor      | NodeByte Owner    | Deep respect        |
-| Harley      | NodeByte Co-owner | Deep respect        |
-| Rizon       | Developer         | Fun to roast        |
-| Rootspring  | Staff             | Fun to roast        |
-| Select      | Staff             | Fun to roast        |
-| Ranveersoni | Web Developer     | Fun to roast        |
-| Quin        | Purrquinox Mascot | Cross-species rival |
-
-## Serialization
-
-The Serialization utility (`serialization.js`) prevents circular reference errors when handling complex objects.
-
-### Key Functions
-
-#### `makeSerializable(obj, options)`
-
-Creates a safe copy of an object by handling circular references and non-serializable values.
-
-```javascript
-// Before sending complex objects to the AI model
-const safeObject = makeSerializable(complexObject)
-```
-
-#### `safeStringify(obj)`
-
-Safely converts an object to a JSON string.
-
-```javascript
-const jsonString = safeStringify(complexObject)
-```
-
-#### `safeClone(obj)`
-
-Creates a deep clone of an object without circular references.
-
-```javascript
-const clonedObject = safeClone(originalObject)
-```
-
-## Performance Optimization
-
-The Performance utilities help optimize Echo's operations.
-
-### Memoization
-
-```javascript
-// Memoize expensive operations
-const memoizedFunction = memoize(expensiveFunction)
-```
-
-### Rate Limiting
-
-Echo implements rate limiting for various operations, particularly for the knowledge base:
-
-```javascript
-// Rate limiting configuration
-this.rateLimits = {
-    creation: {
-        window: 3600000, // 1 hour in ms
-        maxRequests: 10 // Max 10 entries per hour per user
-    }
+try {
+  // Your code
+} catch (error) {
+  return handleProcessingError(error, context, 'componentName');
 }
 ```
 
-## Permission Management
-
-Echo uses a role-based permission system defined in `permissionUtils.js`.
-
-### Role Hierarchy
-
-1. Admin - Full access
-2. Developer - Technical access
-3. Moderator - Moderation capabilities
-4. Support Agent - Support capabilities
-5. User - Basic access
-
-### Default Permissions
+### Promise Utilities
 
 ```javascript
-const userPermissions = getDefaultPermissions(Roles.USER)
+import { withTimeout } from '../utils';
+
+// Prevent hanging on slow external services
+const result = await withTimeout(apiCall(), 5000, 'API request');
 ```
 
-### Permission Validation
+## Best Practices
 
-```javascript
-// Check if a role change is valid
-const isValid = validatePermissionChange(oldRole, newRole, performerRole)
-```
+1. **Always use shared utilities** instead of reimplementing common functionality
+2. **Import from the index file** (`../utils`) rather than individual utility files
+3. **Add metrics and monitoring** for performance-sensitive operations
+4. **Handle errors consistently** using the standardized error handlers
+5. **Document new utilities** when adding them to the shared library
+
+## Adding New Utilities
+
+When adding new utility functions:
+
+1. Place them in the appropriate file in the `utils` directory
+2. Export them in the `utils/index.js` file
+3. Add documentation to this file
+4. Add unit tests if applicable
+
+## Performance Considerations
+
+- Use the `memoize` utility for expensive, frequently-called functions with stable inputs
+- Set appropriate TTL values for cached items based on data volatility
+- Consider memory usage when caching large objects
+- Use the built-in metrics to monitor cache performance

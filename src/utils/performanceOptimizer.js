@@ -1,234 +1,151 @@
 /**
- * Utility functions to optimize performance across the application
+ * Performance optimization utilities for the Echo codebase
  */
-
-// Cache for optimization
-const optimizationCache = new Map()
 
 /**
- * Memoizes a function to improve performance for repeated calls
- * @param {Function} fn - The function to memoize
- * @param {Object} options - Memoization options
- * @param {number} options.maxSize - Maximum cache size (default: 100)
- * @param {number} options.ttl - Time to live in ms (default: 5 minutes)
- * @returns {Function} - Memoized function
+ * Cache for memoized functions
+ * @private
  */
-export function memoize(fn, options = {}) {
-    const cache = new Map()
+const memoizationCache = new Map()
+
+/**
+ * Memoizes a function to cache results and improve performance
+ * @param {Function} fn - Function to memoize
+ * @param {Function} [keyFn] - Optional function to generate cache key
+ * @param {Object} [options] - Cache options
+ * @param {number} [options.maxSize=100] - Maximum cache size
+ * @param {number} [options.ttl=3600000] - Time to live in ms (1 hour default)
+ * @returns {Function} Memoized function
+ */
+export function memoize(fn, keyFn, options = {}) {
     const maxSize = options.maxSize || 100
-    const ttl = options.ttl || 5 * 60 * 1000 // 5 minutes default
+    const ttl = options.ttl || 3600000 // 1 hour
 
-    return async function (...args) {
-        // Create a cache key from the arguments
-        const key = JSON.stringify(args)
+    // Generate unique cache ID for this function
+    const fnId = fn.name || Math.random().toString(36).substring(2, 9)
 
-        // Check if we have a cached result
+    // Create cache for this function if it doesn't exist
+    if (!memoizationCache.has(fnId)) {
+        memoizationCache.set(fnId, new Map())
+    }
+
+    const cache = memoizationCache.get(fnId)
+
+    return function (...args) {
+        // Generate cache key
+        const key = keyFn ? keyFn(...args) : JSON.stringify(args)
+
+        // Check if cached result exists and is not expired
         if (cache.has(key)) {
-            const { result, timestamp } = cache.get(key)
-
-            // Check if the cache entry is still valid
-            if (Date.now() - timestamp < ttl) {
-                return result
+            const entry = cache.get(key)
+            if (Date.now() - entry.timestamp < ttl) {
+                return entry.value
             }
-
             // Remove expired entry
             cache.delete(key)
         }
 
-        // Limit cache size by removing oldest entries
+        // Enforce cache size limit
         if (cache.size >= maxSize) {
+            // Remove oldest entry
             const oldestKey = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0]
             cache.delete(oldestKey)
         }
 
-        // Call the original function
-        const result = await fn(...args)
+        // Call original function and cache result
+        const result = fn(...args)
+
+        // Handle promises
+        if (result instanceof Promise) {
+            return result.then(value => {
+                cache.set(key, { value, timestamp: Date.now() })
+                return value
+            })
+        }
 
         // Cache the result
-        cache.set(key, {
-            result,
-            timestamp: Date.now()
-        })
-
+        cache.set(key, { value: result, timestamp: Date.now() })
         return result
     }
 }
 
 /**
- * Run a function with a timeout
- * @param {Function} fn - Function to run
- * @param {number} timeout - Timeout in ms
- * @param {any} defaultValue - Default value if timeout occurs
- * @returns {Promise<any>} Function result or default value
+ * Creates a rate limiter function
+ * @param {Object} options - Rate limiter options
+ * @param {number} options.maxRequests - Maximum requests allowed in the time window
+ * @param {number} options.window - Time window in milliseconds
+ * @returns {Function} Rate limiter function that returns true if request is allowed
  */
-export async function withTimeout(fn, timeout, defaultValue) {
-    let timeoutId
+export function createRateLimiter(options) {
+    const { maxRequests, window } = options
+    const requests = new Map()
 
-    const timeoutPromise = new Promise(resolve => {
-        timeoutId = setTimeout(() => {
-            resolve(defaultValue)
-        }, timeout)
-    })
-
-    try {
-        const result = await Promise.race([fn(), timeoutPromise])
-        clearTimeout(timeoutId)
-        return result
-    } catch (error) {
-        clearTimeout(timeoutId)
-        throw error
-    }
-}
-
-/**
- * Run multiple promises concurrently with a limit
- * @param {Array<Function>} tasks - Array of functions that return promises
- * @param {number} concurrency - Max concurrent tasks
- * @returns {Promise<Array<any>>} Results array
- */
-export async function concurrentLimit(tasks, concurrency = 3) {
-    const results = []
-    const executing = []
-
-    for (const [index, task] of tasks.entries()) {
-        const p = Promise.resolve().then(() => task())
-        results[index] = p
-
-        if (concurrency <= tasks.length) {
-            const e = p.then(() => executing.splice(executing.indexOf(e), 1))
-            executing.push(e)
-            if (executing.length >= concurrency) {
-                await Promise.race(executing)
-            }
-        }
-    }
-
-    return Promise.all(results)
-}
-
-/**
- * Optimize a database query by adding timeout and retry logic
- * @param {Function} queryFn - Database query function
- * @param {Object} options - Options for optimization
- * @returns {Promise<any>} Query result
- */
-export async function optimizeDbQuery(queryFn, options = {}) {
-    const { timeout = 5000, retries = 2, fallback = null } = options
-
-    let lastError
-
-    for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-            return await withTimeout(queryFn, timeout, fallback)
-        } catch (error) {
-            lastError = error
-            if (attempt < retries) {
-                await new Promise(r => setTimeout(r, 100 * Math.pow(2, attempt)))
-            }
-        }
-    }
-
-    console.error('Database query failed after retries:', lastError)
-    return fallback
-}
-
-/**
- * Debounces a function call
- * @param {Function} fn - The function to debounce
- * @param {number} delay - Delay in ms
- * @returns {Function} - Debounced function
- */
-export function debounce(fn, delay) {
-    let timer = null
-
-    return function (...args) {
-        const context = this
-
-        if (timer) {
-            clearTimeout(timer)
-        }
-
-        timer = setTimeout(() => {
-            fn.apply(context, args)
-            timer = null
-        }, delay)
-    }
-}
-
-/**
- * Throttles a function call
- * @param {Function} fn - The function to throttle
- * @param {number} limit - Time limit in ms
- * @returns {Function} - Throttled function
- */
-export function throttle(fn, limit) {
-    let lastCall = 0
-    let waiting = false
-    let lastArgs = null
-
-    return function (...args) {
-        const context = this
+    return function (key) {
         const now = Date.now()
 
-        if (now - lastCall >= limit) {
-            lastCall = now
-            fn.apply(context, args)
-        } else if (!waiting) {
-            waiting = true
-            lastArgs = args
-
-            setTimeout(
-                () => {
-                    waiting = false
-                    lastCall = Date.now()
-                    fn.apply(context, lastArgs)
-                },
-                limit - (now - lastCall)
-            )
+        if (!requests.has(key)) {
+            requests.set(key, [])
         }
+
+        // Get current request timestamps and filter expired ones
+        const timestamps = requests.get(key).filter(time => now - time < window)
+
+        // Check if rate limit is exceeded
+        if (timestamps.length >= maxRequests) {
+            return false
+        }
+
+        // Record this request
+        timestamps.push(now)
+        requests.set(key, timestamps)
+
+        return true
     }
 }
 
 /**
- * Runs tasks in a queue to limit concurrency
+ * Execute a function with timeout protection
+ * @param {Promise} promise - The promise to execute
+ * @param {number} timeoutMs - Timeout in milliseconds
+ * @param {string} [errorMessage] - Custom error message
+ * @returns {Promise} Promise with timeout protection
  */
-export class TaskQueue {
-    constructor(concurrency = 2) {
-        this.concurrency = concurrency
-        this.running = 0
-        this.queue = []
-    }
+export async function withTimeout(promise, timeoutMs = 10000, errorMessage = 'Operation timed out') {
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    })
 
-    /**
-     * Add a task to the queue
-     * @param {Function} task - Async function to execute
-     * @returns {Promise} - Promise that resolves when the task completes
-     */
-    enqueue(task) {
-        return new Promise((resolve, reject) => {
-            this.queue.push({ task, resolve, reject })
-            this._next()
-        })
-    }
+    return Promise.race([promise, timeoutPromise])
+}
 
-    /**
-     * Process the next task in the queue
-     * @private
-     */
-    _next() {
-        if (this.running >= this.concurrency || this.queue.length === 0) {
-            return
+/**
+ * Batch processor for optimizing multiple operations
+ * @param {Function} processFn - Function to process each item
+ * @param {Array} items - Items to process
+ * @param {Object} options - Batch options
+ * @param {number} [options.batchSize=10] - Size of each batch
+ * @param {number} [options.delay=0] - Delay between batches in ms
+ * @returns {Promise<Array>} Results from all operations
+ */
+export async function processBatch(processFn, items, options = {}) {
+    const batchSize = options.batchSize || 10
+    const delay = options.delay || 0
+
+    const results = []
+
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize)
+
+        // Process batch concurrently
+        const batchResults = await Promise.all(batch.map(item => processFn(item)))
+
+        results.push(...batchResults)
+
+        // Add delay between batches if specified
+        if (delay > 0 && i + batchSize < items.length) {
+            await new Promise(resolve => setTimeout(resolve, delay))
         }
-
-        const { task, resolve, reject } = this.queue.shift()
-        this.running++
-
-        Promise.resolve(task())
-            .then(resolve)
-            .catch(reject)
-            .finally(() => {
-                this.running--
-                this._next()
-            })
     }
+
+    return results
 }

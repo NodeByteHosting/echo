@@ -7,8 +7,8 @@ import { promptService } from '../services/prompt.service.js'
 export class BaseAgent {
     /**
      * Create an instance of BaseAgent
-     * @param {Object} tools - Object containing tools to be used by the agent
-     * @param {Object} aiModel - The AI model to use for advanced reasoning
+     * @param {Object} [tools] - Object containing tools to be used by the agent
+     * @param {Object} [aiModel] - The AI model to use for advanced reasoning
      */
     constructor(tools, aiModel) {
         this.tools = tools
@@ -115,10 +115,70 @@ Provide a helpful, accurate, and detailed response while staying within your spe
      */
     clearContextQuestion(userId) {
         this.contextQuestions.delete(userId)
-    } /**
+    }
+
+    /**
+     * Standard error handling for agents
+     * @param {Error} error - The error to handle
+     * @param {Object} contextData - Context data about the request
+     * @returns {Object} Standardized error response
+     */
+    _handleError(error, contextData = {}) {
+        console.error(`${this.constructor.name} error:`, error.message, error.stack)
+
+        let errorMessage = `Error processing your request: ${error.message}`
+        let errorType = 'processing_error'
+        let recoverable = true
+        let suggestedAction = 'Please try again or rephrase your question.'
+
+        // Customize error handling based on error type
+        if (error.message.includes('JSON Parse error') || error.message.includes('Unexpected token')) {
+            errorType = 'parsing_error'
+            errorMessage += '\n\nI had trouble processing the data. This typically happens with complex input.'
+            suggestedAction = 'Try simplifying your request or breaking it into smaller parts.'
+        } else if (error.message.includes('timeout')) {
+            errorType = 'timeout_error'
+            errorMessage += '\n\nThe operation took too long to complete.'
+            suggestedAction = 'Try again with a simpler query or at a less busy time.'
+        } else if (error.message.includes('rate limit')) {
+            errorType = 'rate_limit_error'
+            errorMessage = "You've reached the rate limit for this operation."
+            suggestedAction = 'Please wait a moment before trying again.'
+            recoverable = false
+        }
+
+        return {
+            content: errorMessage,
+            error: true,
+            errorType,
+            recoverable,
+            suggestedAction
+        }
+    }
+
+    /**
+     * Format a standard agent response
+     * @param {string|Object} content - Response content
+     * @param {Object} options - Additional options
+     * @returns {Object} Formatted response
+     */
+    _formatResponse(content, options = {}) {
+        // If content is already an object, assume it's properly formatted
+        if (typeof content === 'object' && content !== null) {
+            return content
+        }
+
+        // Build standard response object
+        return {
+            content: content || "I'm sorry, I couldn't generate a response.",
+            ...options
+        }
+    }
+
+    /**
      * Determine if the agent can handle the given message
-     * @param {Object} _message - The message to be handled
-     * @returns {boolean} - True if the agent can handle the message, false otherwise
+     * @param {string} _message - The message to be handled
+     * @returns {Promise<boolean>} - True if the agent can handle the message
      */
     async canHandle(_message) {
         return false // Override in subclasses
@@ -126,41 +186,13 @@ Provide a helpful, accurate, and detailed response while staying within your spe
 
     /**
      * Process user message and generate response
-     * @param {Object} _message - The message to be processed
+     * @param {string} _message - The message to be processed
      * @param {string} _userId - The ID of the user
      * @param {Object} _contextData - The context data for the user
      * @returns {Promise<Object>} - The result of the processing
      */
     async process(_message, _userId, _contextData) {
-        throw new Error('processMessage must be implemented by subclasses')
-    }
-
-    /**
-     * Update user context with new data
-     * @param {string} _userId - The ID of the user
-     * @param {Object} _newContextData - The new context data to be merged
-     * @returns {Promise<void>}
-     */
-    async updateContext(_userId, _newContextData) {
-        throw new Error('updateContext must be implemented by subclasses')
-    }
-
-    /**
-     * Get response to user message
-     * @param {Object} _message - The message to be responded to
-     * @returns {Promise<Object>} - The response to the message
-     */
-    async getResponse(_message) {
-        throw new Error('getResponse must be implemented by subclasses')
-    }
-
-    /**
-     * Validate the result before sending it to the user
-     * @param {Object} _result - The result to be validated
-     * @returns {boolean} - True if the result is valid, false otherwise
-     */
-    async validateResult(_result) {
-        return true // Override in subclasses if needed
+        throw new Error('process must be implemented by subclasses')
     }
 }
 

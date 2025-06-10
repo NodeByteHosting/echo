@@ -2,6 +2,9 @@ import { BaseAgent } from './baseAgent.js'
 import { db } from '../../database/client.js'
 import { memoize } from '../../utils/performanceOptimizer.js'
 import { promptService } from '../services/prompt.service.js'
+import { knowledgeCache } from '../../utils/cacheManager.js'
+import { safeJsonParse, extractJsonFromText } from '../../utils/serialization.js'
+import { createRateLimiter } from '../../utils/performanceOptimizer.js'
 
 export class KnowledgeAgent extends BaseAgent {
     constructor(aiModel) {
@@ -9,26 +12,16 @@ export class KnowledgeAgent extends BaseAgent {
         this.aiModel = aiModel
         this.database = db.getInstance()
 
-        // Rate limiting configuration
-        this.rateLimits = {
-            creation: {
+        // Rate limiting configuration using the utility
+        this.rateLimiter = {
+            creation: createRateLimiter({
                 window: 3600000, // 1 hour in ms
                 maxRequests: 10 // Max 10 entries per hour per user
-            },
-            rating: {
+            }),
+            rating: createRateLimiter({
                 window: 300000, // 5 minutes in ms
                 maxRequests: 5 // Max 5 ratings per 5 minutes per user
-            }
-        }
-
-        // Cache for rate limiting
-        this.requestCounts = new Map()
-
-        // Create a cache for knowledge base results to reduce database queries
-        this.knowledgeCache = new Map()
-        this.cacheConfig = {
-            maxSize: 200,
-            ttl: 30 * 60 * 1000 // 30 minutes
+            })
         }
 
         // Memoize expensive operations
@@ -71,9 +64,9 @@ Return: true or false`,
                 return await this.handleSaveRequest(message, userId)
             }
 
-            // Check cache for similar queries
-            const cacheKey = this._generateCacheKey(message)
-            const cachedResults = this._getCachedResults(cacheKey)
+            // Check cache for similar queries using the centralized cache
+            const cacheKey = knowledgeCache.generateKey('kb', message)
+            const cachedResults = knowledgeCache.get(cacheKey)
 
             if (cachedResults) {
                 console.log('Using cached knowledge results')
@@ -98,7 +91,10 @@ Return: true or false`,
             })
 
             // Cache the results for future use
-            this._cacheResults(cacheKey, knowledgeResults, queryContext.relatedTopics)
+            knowledgeCache.set(cacheKey, {
+                results: knowledgeResults,
+                topics: queryContext.relatedTopics
+            })
 
             // Increment use count as a background task, don't await it
             if (knowledgeResults.length > 0) {
@@ -166,7 +162,10 @@ Return JSON: {"topic": "main topic", "relatedTopics": ["topic1", "topic2"]}`,
                 }
             })
 
-            return JSON.parse(analysis)
+            return safeJsonParse(analysis, {
+                topic: message.split(' ').slice(0, 3).join(' '),
+                relatedTopics: []
+            })
         } catch (error) {
             console.error('Error parsing analysis:', error)
             // Fallback to simpler extraction
@@ -218,40 +217,6 @@ Return JSON: {"topic": "main topic", "relatedTopics": ["topic1", "topic2"]}`,
     _generateCacheKey(message) {
         const normalized = message.toLowerCase().trim().replace(/\s+/g, ' ')
         return `kb:${normalized.substring(0, 100)}`
-    }
-
-    /**
-     * Get cached results if available
-     */
-    _getCachedResults(key) {
-        const cached = this.knowledgeCache.get(key)
-        if (!cached) {
-            return null
-        }
-
-        if (Date.now() - cached.timestamp > this.cacheConfig.ttl) {
-            this.knowledgeCache.delete(key)
-            return null
-        }
-
-        return cached.results
-    }
-
-    /**
-     * Cache knowledge results
-     */
-    _cacheResults(key, results, topics) {
-        if (this.knowledgeCache.size >= this.cacheConfig.maxSize) {
-            // Remove oldest entry
-            const oldestKey = [...this.knowledgeCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0]
-            this.knowledgeCache.delete(oldestKey)
-        }
-
-        this.knowledgeCache.set(key, {
-            results: results,
-            topics: topics,
-            timestamp: Date.now()
-        })
     }
 
     /**
@@ -484,27 +449,19 @@ Return only the title text, no quotes or explanation.`
         }
     }
 
-    // Rate limiting utility
+    /**
+     * Check rate limit using the utility
+     * @param {string} userId - User ID
+     * @param {string} action - Action type (creation, rating)
+     * @returns {Promise<boolean>} Whether the action is allowed
+     */
     async checkRateLimit(userId, action) {
-        const now = Date.now()
-        const key = `${userId}-${action}`
-        const limit = this.rateLimits[action]
+        const allowed = this.rateLimiter[action](`${userId}-${action}`)
 
-        if (!this.requestCounts.has(key)) {
-            this.requestCounts.set(key, [])
+        if (!allowed) {
+            throw new Error(`Rate limit exceeded. Please try again later.`)
         }
 
-        const requests = this.requestCounts.get(key)
-        const validRequests = requests.filter(time => now - time < limit.window)
-        this.requestCounts.set(key, validRequests)
-
-        if (validRequests.length >= limit.maxRequests) {
-            const oldestRequest = Math.min(...validRequests)
-            const timeToWait = Math.ceil((limit.window - (now - oldestRequest)) / 1000)
-            throw new Error(`Rate limit exceeded. Please try again in ${timeToWait} seconds.`)
-        }
-
-        validRequests.push(now)
         return true
     }
 

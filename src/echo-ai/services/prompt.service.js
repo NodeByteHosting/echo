@@ -4,178 +4,179 @@
 import fs from 'fs/promises'
 import path from 'path'
 import { aiConfig } from '../../configs/ai.config.js'
-import { detectAndResolvePeople, isPersonaQuery, mentionsPersonaRelationships } from '../../utils/personaManager.js'
-
-// Define prompt file extensions in order of preference
-const PROMPT_EXTENSIONS = ['.echo', '.md', '.txt']
-// Base path for prompt templates
-const DEFAULT_PROMPT_PATH = 'd://@nodebyte/echo/prompts'
+import { log } from '../../functions/logger.js'
+import { CacheManager } from '../../utils/cacheManager.js'
 
 // Cache for prompt templates
-const promptCache = new Map()
+const promptCache = new CacheManager({
+    maxSize: 100,
+    ttl: 86400000 // 24 hours
+})
+
+// Define supported prompt file extensions
+const PROMPT_EXTENSIONS = ['.echo', '.txt', '.md']
 
 class PromptService {
     constructor() {
+        this.prompts = new Map()
         this.initialized = false
-        this.basePath = DEFAULT_PROMPT_PATH
-        this.defaultPrompt = null
-        this.promptTypes = {
-            default: 'default',
-            dm: 'dm',
-            persona: 'persona',
-            entity_mentions: 'entity_mentions',
-            technical: 'technical',
-            knowledge: 'knowledge_synthesis',
-            research: 'research_synthesis',
-            support: 'technical_support',
-            code: 'code_analysis',
-            conversation: 'conversation'
-        }
+        this.basePath = process.env.PROMPT_PATH || 'd://@nodebyte/echo/src/echo-ai/prompts'
     }
 
     /**
-     * Initialize the prompt service
-     * @param {Object} options - Configuration options
+     * Initialize the prompt service and load all prompts
+     * @param {Object} options - Initialization options
+     * @param {boolean} [options.force=false] - Force reload all prompts
+     * @returns {Promise<void>}
      */
     async initialize(options = {}) {
-        this.basePath = options.basePath || aiConfig.promptPaths?.basePath || DEFAULT_PROMPT_PATH
-        const force = options.force || false
+        if (this.initialized && !options.force) {
+            return
+        }
 
         try {
-            // Clear cache if forced
-            if (force) {
-                promptCache.clear()
-                console.log('Prompt cache cleared')
-            }
+            // Get all prompt files from the directory
+            const files = await fs.readdir(this.basePath)
 
-            // Load the default prompt first
-            this.defaultPrompt = await this.loadPromptTemplate(this.promptTypes.default)
-
-            // Validate that we have the essential prompts
-            const essentialPrompts = [this.promptTypes.default, this.promptTypes.dm, this.promptTypes.persona]
-
-            for (const promptType of essentialPrompts) {
-                const prompt = await this.loadPromptTemplate(promptType)
-                if (!prompt) {
-                    console.warn(`Warning: Essential prompt template '${promptType}' not found`)
+            // Load each prompt file
+            for (const file of files) {
+                if (PROMPT_EXTENSIONS.some(ext => file.endsWith(ext))) {
+                    const promptName = path.basename(file, path.extname(file))
+                    await this.loadPrompt(promptName)
                 }
             }
 
             this.initialized = true
-            console.log('Prompt service initialized successfully')
-
-            return true
+            log(`Prompt service initialized with ${this.prompts.size} prompts`, 'info')
         } catch (error) {
-            console.error('Failed to initialize prompt service:', error)
-            return false
+            log(`Error initializing prompt service: ${error.message}`, 'error')
+            throw error
         }
     }
 
     /**
-     * Load a prompt template from file
-     * @param {string} templateName - The name of the template
-     * @returns {Promise<string>} The template content
+     * Load a specific prompt by name
+     * @param {string} promptName - The name of the prompt to load
+     * @returns {Promise<string|null>} The prompt template or null if not found
      */
-    async loadPromptTemplate(templateName) {
-        // Check cache first
-        const cacheKey = `${this.basePath}/${templateName}`
-        if (promptCache.has(cacheKey)) {
-            return promptCache.get(cacheKey)
-        }
+    async loadPrompt(promptName) {
+        try {
+            // Try each supported extension
+            for (const extension of PROMPT_EXTENSIONS) {
+                try {
+                    const filePath = path.join(this.basePath, `${promptName}${extension}`)
+                    const exists = await fs
+                        .access(filePath)
+                        .then(() => true)
+                        .catch(() => false)
 
-        // Try each supported extension
-        for (const extension of PROMPT_EXTENSIONS) {
-            try {
-                const filePath = path.join(this.basePath, `${templateName}${extension}`)
-                const exists = await fs
-                    .access(filePath)
-                    .then(() => true)
-                    .catch(() => false)
-
-                if (exists) {
-                    const template = await fs.readFile(filePath, 'utf8')
-                    // Cache the template
-                    promptCache.set(cacheKey, template)
-                    return template
+                    if (exists) {
+                        const template = await fs.readFile(filePath, 'utf8')
+                        this.prompts.set(promptName, template)
+                        return template
+                    }
+                } catch (error) {
+                    // Continue to the next extension
+                    continue
                 }
-            } catch (error) {
-                // Continue to the next extension
-                continue
             }
+
+            log(`Prompt ${promptName} not found with any supported extension`, 'warn')
+            return null
+        } catch (error) {
+            log(`Error loading prompt ${promptName}: ${error.message}`, 'error')
+            return null
+        }
+    }
+
+    /**
+     * Get a prompt template by name
+     * @param {string} promptName - The name of the prompt
+     * @returns {Promise<string|null>} The prompt template or null if not found
+     */
+    async getPrompt(promptName) {
+        // Check if already loaded
+        if (this.prompts.has(promptName)) {
+            return this.prompts.get(promptName)
         }
 
-        console.warn(`Prompt template ${templateName} not found with any supported extension`)
+        // Try to load it
+        return await this.loadPrompt(promptName)
+    }
+
+    /**
+     * Get an agent-specific prompt
+     * @param {string} agentName - The agent class name
+     * @param {Object} context - The context data
+     * @returns {Promise<string|null>} The agent prompt or null if not found
+     */
+    async getAgentPrompt(agentName, context) {
+        // Convert agent class name to prompt name (e.g., ConversationAgent -> conversation)
+        const promptName = agentName.replace('Agent', '').toLowerCase()
+
+        // Try to get the agent-specific prompt
+        let prompt = await this.getPrompt(promptName)
+
+        // Fall back to default if not found
+        if (!prompt) {
+            prompt = await this.getPrompt('default')
+        }
+
+        // Process the prompt with the context
+        if (prompt) {
+            return this.processTemplate(prompt, context)
+        }
+
         return null
     }
 
     /**
-     * Get appropriate prompt based on message context
-     * @param {Object} context - The message context
-     * @returns {Promise<string>} The appropriate prompt
+     * Get a prompt based on context
+     * @param {Object} context - The context data
+     * @returns {Promise<string>} The processed prompt
      */
     async getPromptForContext(context) {
-        // Ensure the service is initialized
-        if (!this.initialized) {
-            await this.initialize()
+        // Generate a cache key based on relevant context data
+        const cacheKey = this._generatePromptCacheKey(context)
+
+        // Check cache first
+        const cachedPrompt = promptCache.get(cacheKey)
+        if (cachedPrompt) {
+            return cachedPrompt
         }
 
-        const { message, isDM, guild, detectedEntities } = context
+        // Determine which prompt to use based on context
+        const promptName = this._determinePromptName(context)
 
-        let promptType = this.promptTypes.default
+        // Get the prompt template
+        let template = await this.getPrompt(promptName)
 
-        // Determine the appropriate prompt type based on context
-        if (isDM) {
-            promptType = this.promptTypes.dm
-        } else if (isPersonaQuery(message) || mentionsPersonaRelationships(message)) {
-            promptType = this.promptTypes.persona
-        } else if (detectedEntities && detectedEntities.length > 0) {
-            promptType = this.promptTypes.entity_mentions
-        } else if (context.messageType) {
-            // Map message types to prompt types
-            switch (context.messageType) {
-                case 'technical':
-                case 'support':
-                    promptType = this.promptTypes.technical
-                    break
-                case 'knowledge':
-                    promptType = this.promptTypes.knowledge
-                    break
-                case 'research':
-                    promptType = this.promptTypes.research
-                    break
-                case 'code':
-                    promptType = this.promptTypes.code
-                    break
-                case 'conversation':
-                    promptType = this.promptTypes.conversation
-                    break
+        // Fall back to default if not found
+        if (!template) {
+            template = await this.getPrompt('default')
+
+            // If still not found, use hardcoded default
+            if (!template) {
+                template = aiConfig.systemPrompt
             }
         }
 
-        // Load the appropriate prompt template
-        let promptTemplate = await this.loadPromptTemplate(promptType)
+        // Process the template with context variables
+        const processedPrompt = this.processTemplate(template, context)
 
-        // Fall back to default if the specific template is not found
-        if (!promptTemplate) {
-            promptTemplate = this.defaultPrompt
-        }
+        // Cache the processed prompt
+        promptCache.set(cacheKey, processedPrompt)
 
-        // No template found, return a basic prompt
-        if (!promptTemplate) {
-            return "You are Echo, NodeByte's fox assistant. Be helpful and knowledgeable."
-        }
-
-        // Process the template with variables
-        return this.processTemplate(promptTemplate, context)
+        return processedPrompt
     }
 
     /**
-     * Process a template with variables
-     * @param {string} template - The template string
-     * @param {Object} context - The context object with variables
-     * @returns {string} The processed template
+     * Process a template string with variables
+     * @param {string} template - Template string with {{variable}} placeholders
+     * @param {Object} context - Context object with variables
+     * @returns {string} Processed template
      */
-    processTemplate(template, context) {
+    processTemplate(template, context = {}) {
         if (!template) {
             return ''
         }
@@ -228,70 +229,84 @@ class PromptService {
     }
 
     /**
-     * Create a context object for prompt generation
-     * @param {string} message - The user message
-     * @param {Object} contextData - Additional context data
-     * @returns {Promise<Object>} The context object
+     * Create a context object for prompt processing
+     * @param {string} message - User message
+     * @param {Object} additionalContext - Additional context data
+     * @returns {Promise<Object>} Context object
      */
-    async createContext(message, contextData = {}) {
-        // Extract relevant information from contextData
-        const { guild, channel, author, isDM = false, messageType = 'conversation' } = contextData
-
-        // Detect entities in the message if guild is available
-        let detectedEntities = []
-        if (guild) {
-            const detection = await detectAndResolvePeople(message, guild)
-            detectedEntities = detection.mentions || []
-        }
-
-        // Build the context object
+    async createContext(message, additionalContext = {}) {
+        // Base context with message
         const context = {
             message,
-            messageType,
-            isDM,
-            detectedEntities,
-            guildName: guild?.name || 'Direct Message',
-            channelName: isDM ? 'DM' : channel?.name || 'Unknown Channel',
-            userName: author?.username || author?.displayName || 'User',
-            userId: author?.id || 'unknown',
-            platform: 'discord',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            ...additionalContext
         }
 
-        // Add any additional context properties
-        return { ...context, ...contextData }
+        // Add default values for commonly used context variables
+        if (!context.guildName && additionalContext.guild) {
+            context.guildName = additionalContext.guild.name
+        }
+
+        if (!context.channelName && additionalContext.channel) {
+            context.channelName = additionalContext.channel.name
+        }
+
+        if (!context.userName && additionalContext.user) {
+            context.userName = additionalContext.user.username || 'User'
+        }
+
+        return context
     }
 
     /**
-     * Get prompt for a specific agent
-     * @param {string} agentType - The type of agent
-     * @param {Object} context - The context object
-     * @returns {Promise<string>} The agent-specific prompt
+     * Generate a cache key for prompt context
+     * @param {Object} context - Context data
+     * @returns {string} Cache key
+     * @private
      */
-    async getAgentPrompt(agentType, context) {
-        // Map agent types to prompt types
-        const promptMap = {
-            TechnicalSupportAgent: this.promptTypes.support,
-            ResearchAgent: this.promptTypes.research,
-            KnowledgeAgent: this.promptTypes.knowledge,
-            ConversationAgent: this.promptTypes.conversation,
-            CodeAnalysisAgent: this.promptTypes.code
+    _generatePromptCacheKey(context) {
+        // Only include relevant fields for cache key
+        const keyParts = [
+            context.messageType || 'default',
+            context.agentType || '',
+            context.isDM ? 'dm' : '',
+            context.detectedEntities?.length ? 'entities' : ''
+        ].filter(Boolean)
+
+        return `prompt:${keyParts.join(':')}`
+    }
+
+    /**
+     * Determine which prompt to use based on context
+     * @param {Object} context - Context data
+     * @returns {string} Prompt name
+     * @private
+     */
+    _determinePromptName(context) {
+        // First check if a specific message type is requested
+        if (context.messageType) {
+            return context.messageType
         }
 
-        const promptType = promptMap[agentType] || this.promptTypes.default
-        let promptTemplate = await this.loadPromptTemplate(promptType)
-
-        // Fall back to default if agent-specific template not found
-        if (!promptTemplate) {
-            promptTemplate = this.defaultPrompt
+        // Check for specialized contexts
+        if (context.isDM) {
+            return 'dm'
         }
 
-        return this.processTemplate(promptTemplate, context)
+        if (context.isPersonaQuery) {
+            return 'persona'
+        }
+
+        if (context.detectedEntities?.length > 0) {
+            return 'entity_mentions'
+        }
+
+        // Fall back to default
+        return 'default'
     }
 }
 
 // Create singleton instance
-const promptServiceInstance = new PromptService()
+const promptService = new PromptService()
 
-// Export the singleton
-export { promptServiceInstance as promptService }
+export { promptService }

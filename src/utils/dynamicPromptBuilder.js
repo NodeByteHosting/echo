@@ -1,9 +1,9 @@
 /**
  * Utility for building dynamic prompts based on context
  */
-import fs from 'fs/promises'
-import path from 'path'
 import { promptService } from '../echo-ai/services/prompt.service.js'
+import { processTemplate, optimizePrompt } from '../echo-ai/utils/promptUtils.js'
+import { log } from '../functions/logger.js'
 
 // Cache for prompt templates
 const promptCache = new Map()
@@ -56,31 +56,7 @@ export async function loadPromptTemplate(templateName, basePath = 'd://@nodebyte
  * @returns {string} The built prompt
  */
 export function buildPrompt(template, variables = {}) {
-    if (!template) {
-        return ''
-    }
-
-    // Replace all variables in the template
-    let result = template
-
-    for (const [key, value] of Object.entries(variables)) {
-        const placeholder = `{{${key}}}`
-
-        // Handle different types of values
-        let replacement = ''
-        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-            replacement = String(value)
-        } else if (Array.isArray(value)) {
-            replacement = value.join(', ')
-        } else if (typeof value === 'object' && value !== null) {
-            replacement = JSON.stringify(value)
-        }
-
-        // Replace all occurrences
-        result = result.split(placeholder).join(replacement)
-    }
-
-    return result
+    return processTemplate(template, variables)
 }
 
 /**
@@ -90,33 +66,20 @@ export function buildPrompt(template, variables = {}) {
  * @returns {Promise<string>} The built prompt
  */
 export async function createContextPrompt(context, defaultTemplate = 'default') {
-    // Determine which template to use based on context
-    let templateName = defaultTemplate
+    try {
+        // Use the prompt service instead of direct file operations
+        const promptContext = await promptService.createContext(context.message || '', context)
+        return await promptService.getPromptForContext(promptContext)
+    } catch (error) {
+        log('Error creating context prompt', 'error', error)
+        // Fall back to a simple default prompt
+        return `You are Echo, NodeByte's fox assistant. Be helpful and knowledgeable.
 
-    if (context.isDM) {
-        templateName = 'dm'
-    } else if (context.isPersonaQuery) {
-        templateName = 'persona'
-    } else if (context.detectedEntities?.length > 0) {
-        templateName = 'entity_mentions'
+Current context:
+- User: ${context.user?.username || 'User'}
+- Message: ${context.message || 'No message provided'}
+${context.detectedEntities?.length > 0 ? `- Mentioned entities: ${context.detectedEntities.map(e => e.name).join(', ')}` : '- No entities mentioned'}`
     }
-
-    // Try to load the specific template
-    let template = await loadPromptTemplate(templateName)
-
-    // Fall back to default if specific template not found
-    if (!template) {
-        template = await loadPromptTemplate(defaultTemplate)
-    }
-
-    // Fall back to empty string with warning if no template found
-    if (!template) {
-        console.warn(`No prompt template found for ${templateName} or default`)
-        return ''
-    }
-
-    // Build the prompt with all context variables
-    return buildPrompt(template, context)
 }
 
 /**
@@ -208,7 +171,7 @@ export function definePromptCategories(options = {}) {
  * Create a dynamic prompt based on detected entities and context
  * @param {Object} context - The context for prompt creation
  * @param {Array} detectedEntities - Detected entities in the message
- * @returns {string} A dynamic system prompt
+ * @returns {Promise<string>} A dynamic system prompt
  */
 export async function createDynamicPrompt(context, detectedEntities = []) {
     // Use the prompt service to get a context-specific prompt
@@ -225,7 +188,7 @@ export async function createDynamicPrompt(context, detectedEntities = []) {
 
         return await promptService.getPromptForContext(enrichedContext)
     } catch (error) {
-        console.error('Error creating dynamic prompt:', error)
+        log('Error creating dynamic prompt', 'error', error)
         // Fallback to simpler prompt
         return `You are Echo, NodeByte's fox assistant. Be helpful and knowledgeable.
 

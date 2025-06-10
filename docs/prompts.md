@@ -169,3 +169,117 @@ Echo is currently acting as a {{agentType}} to help with {{taskDescription}}.
 
 Be {{trait1}}, {{trait2}}, and {{trait3}} while helping the user.
 ```
+
+# Echo AI Prompt System
+
+This document describes how Echo's prompt system works and how to organize prompt files.
+
+## Prompt File Organization
+
+Prompts are stored in the `src/echo-ai/prompts` directory using the `.echo` file extension.
+
+### Directory Structure
+
+```
+src/
+└── echo-ai/
+    └── prompts/
+        ├── default.echo        # Default system prompt
+        ├── persona.echo        # Persona-focused prompt
+        ├── technical.echo      # Technical support mode
+        ├── research.echo       # Research mode
+        ├── code_analysis.echo  # Code analysis mode
+        └── ...                 # Other specialized prompts
+```
+
+### File Naming Conventions
+
+- Use lowercase with underscores for multi-word names
+- Name files based on their purpose or context
+- Use descriptive names that clearly indicate the prompt's function
+
+## Prompt Format
+
+Prompts use a Markdown-based format with Handlebars-style templating:
+
+```markdown
+# Title of Prompt
+
+## Section Heading
+Content with {{variable}} placeholders
+
+{{#if condition}}
+  Conditional content
+{{else}}
+  Alternative content
+{{/if}}
+
+{{#each items}}
+  - Item: {{name}}
+{{/each}}
+```
+
+### Variables
+
+- `{{variableName}}` - Simple variable substitution
+- `{{#if variableName}}...{{/if}}` - Conditional blocks
+- `{{#if variableName}}...{{else}}...{{/if}}` - Conditional with alternative
+- `{{#each arrayName}}...{{/each}}` - Iteration over arrays
+
+## Common Context Variables
+
+These variables are available in most prompt contexts:
+
+- `message` - The user's message
+- `userName` - User's display name
+- `guildName` - Discord server name (if applicable)
+- `channelName` - Channel name (if applicable)
+- `isDM` - Boolean indicating if this is a direct message
+- `timestamp` - Current timestamp
+- `detectedEntities` - Array of detected entities (users, channels, etc.)
+
+## Creating New Prompts
+
+1. Create a new `.echo` file in the prompts directory
+2. Use the template format described above
+3. Include appropriate variables and conditional logic
+4. Register the prompt in `promptService.js` if needed
+
+## Best Practices
+
+- Keep prompts modular and focused on specific use cases
+- Use consistent formatting and organization
+- Include clear instructions for the AI model
+- Prefer conditional blocks over duplicating content
+- Test prompts with different inputs to ensure they work correctly
+
+## Example Prompt
+
+```markdown
+# Knowledge Query Prompt
+
+## Context Information
+- Query: {{message}}
+- User: {{userName}}
+- Time: {{timestamp}}
+
+{{#if isDM}}
+This is a direct message conversation.
+{{else}}
+This is in the server: {{guildName}}
+Channel: {{channelName}}
+{{/if}}
+
+## Response Guidelines
+- Provide accurate information
+- Be concise but thorough
+- Use Echo's direct communication style
+- Include examples where helpful
+
+{{#if knowledgeResults}}
+## Available Knowledge
+{{#each knowledgeResults}}
+- {{title}}: {{summary}}
+{{/each}}
+{{/if}}
+```
