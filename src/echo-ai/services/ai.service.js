@@ -1,16 +1,17 @@
 import { openai } from '@ai-sdk/openai'
-import { aiConfig } from '../configs/ai.config.js'
-import { AIModel } from './aiModel.js'
-import { TechnicalSupportAgent } from './agents/support.js'
-import { ResearchAgent } from './agents/research.js'
-import { KnowledgeAgent } from './agents/knowledge.js'
-import { ConversationAgent } from './agents/conversation.js'
-import { CodeAnalysisAgent } from './agents/analysis.js'
-import { PerformanceTool } from './tools/performance.js'
-import { db } from '../database/client.js'
-import { TicketAgent } from './agents/ticket.js'
-import { makeSerializable } from '../utils/serialization.js'
-import { isPersonaQuery, mentionsPersonaRelationships, createPersonaPrompt } from '../utils/personaManager.js'
+import { aiConfig } from '../../configs/ai.config.js'
+import { AIModel } from '../aiModel.js'
+import { TechnicalSupportAgent } from '../agents/support.js'
+import { ResearchAgent } from '../agents/research.js'
+import { KnowledgeAgent } from '../agents/knowledge.js'
+import { ConversationAgent } from '../agents/conversation.js'
+import { CodeAnalysisAgent } from '../agents/analysis.js'
+import { PerformanceTool } from '../tools/performance.js'
+import { db } from '../../database/client.js'
+import { TicketAgent } from '../agents/ticket.js'
+import { makeSerializable } from '../../utils/serialization.js'
+import { isPersonaQuery, mentionsPersonaRelationships, createContextForResponse } from '../../utils/personaManager.js'
+import { promptService } from './prompt.service.js'
 
 class AIService {
     constructor() {
@@ -26,7 +27,7 @@ class AIService {
         this.database = null
     }
 
-    initialize = () => {
+    initialize = async () => {
         // Initialize agents and performance monitoring
         this.conversationAgent = new ConversationAgent(this.aiModel)
         this.knowledgeAgent = new KnowledgeAgent(this.aiModel)
@@ -41,6 +42,9 @@ class AIService {
 
         // Initialize database connection
         this.database = db.getInstance()
+
+        // Initialize prompt service
+        await promptService.initialize()
 
         if (!process.env.OPENAI_API_KEY) {
             throw new Error('OPENAI_API_KEY is not configured')
@@ -69,21 +73,34 @@ class AIService {
             requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
             this.performance.startTracking(requestId)
 
+            // Prepare context with persona info
+            const personaContext = await createContextForResponse(prompt, contextData.guild, {
+                id: userId,
+                username: contextData.userInfo?.username || 'User',
+                displayName: contextData.userInfo?.displayName || 'User'
+            })
+
             // Check if this is a persona-related query first
             if (isPersonaQuery(prompt) || mentionsPersonaRelationships(prompt)) {
                 console.log('Detected persona query:', prompt)
 
-                // Create a specialized persona-focused prompt
-                const personaPrompt = createPersonaPrompt(aiConfig.systemPrompt, prompt)
+                // Create a specialized persona-focused prompt using prompt service
+                const personaPromptContext = {
+                    ...personaContext,
+                    messageType: 'persona',
+                    message: prompt
+                }
+                const personaPrompt = await promptService.getPromptForContext(personaPromptContext)
 
-                // Generate response directly with the full personality
+                // Generate response with the persona prompt
                 const response = await this.aiModel.getResponse(prompt, {
                     systemPrompt: personaPrompt
                 })
 
                 return {
                     content: response,
-                    type: 'persona_response'
+                    type: 'persona_response',
+                    shouldMention: personaContext.detectedEntities?.length > 0
                 }
             }
 
@@ -93,23 +110,34 @@ class AIService {
                 const query = prompt.substring('research:'.length).trim()
                 return await this.researchAgent.process(query, userId, {
                     ...contextData,
+                    ...personaContext,
                     isDirectResearch: true
                 })
             }
 
             // Check if the prompt mentions specific people from the prompt
-            const containsSpecificPerson = this._checkForSpecificPerson(prompt)
+            const containsSpecificPerson = personaContext.detectedEntities?.some(e => e.type === 'user')
 
             if (containsSpecificPerson) {
-                // If it mentions a specific person, directly use the main AI model with full system prompt
+                // If it mentions a specific person, use entity mentions prompt
+                const entityPromptContext = {
+                    ...personaContext,
+                    messageType: 'entity_mentions',
+                    message: prompt
+                }
+                const entityPrompt = await promptService.getPromptForContext(entityPromptContext)
+
+                // Generate response with the entity mentions prompt
                 const response = await this.aiModel.getResponse(prompt, {
-                    systemPrompt: aiConfig.systemPrompt, // Force full system prompt
-                    personalityMode: 'full'
+                    systemPrompt: entityPrompt,
+                    context: personaContext
                 })
 
                 return {
                     content: response,
-                    type: 'direct_persona_response'
+                    type: 'person_mention_response',
+                    shouldMention: true,
+                    detectedEntities: personaContext.detectedEntities
                 }
             }
 
@@ -122,31 +150,42 @@ class AIService {
             // Check if this is a followup to a conversation that needed research
             if (contextData.needsResearch === true && contextData.previousResponse) {
                 // Continue research flow from previous response
-                return await this._continueResearchFlow(prompt, userId, contextData)
+                return await this._continueResearchFlow(prompt, userId, {
+                    ...contextData,
+                    ...personaContext
+                })
             }
 
             // Use a better classification approach with our new agents
             const messageType = await this._classifyMessageIntent(prompt)
 
+            // Add message type to context for prompt selection
+            const enrichedContext = {
+                ...contextData,
+                ...personaContext,
+                messageType
+            }
+
             // Enhanced routing based on intent
             switch (messageType) {
                 case 'ticket':
-                    return this.ticketAgent.process(prompt, userId, contextData)
+                    return this.ticketAgent.process(prompt, userId, enrichedContext)
 
                 case 'knowledge':
                     // For knowledge requests, consider if research is needed
-                    const knowledgeResponse = await this.knowledgeAgent.process(prompt, userId, contextData)
+                    const knowledgeResponse = await this.knowledgeAgent.process(prompt, userId, enrichedContext)
 
                     if (knowledgeResponse.needsResearch) {
                         // Get research results
                         const researchResults = await this.researchAgent.process(
                             knowledgeResponse.searchQuery || prompt,
-                            userId
+                            userId,
+                            enrichedContext
                         )
 
                         // Add research to context and retry
                         return await this.knowledgeAgent.process(prompt, userId, {
-                            ...contextData,
+                            ...enrichedContext,
                             researchResults: researchResults.content,
                             sourceResults: researchResults.sourceResults
                         })
@@ -155,22 +194,23 @@ class AIService {
                     return knowledgeResponse
 
                 case 'code':
-                    return this.analysisAgent.process(prompt, userId, contextData)
+                    return this.analysisAgent.process(prompt, userId, enrichedContext)
 
                 case 'support':
                     // For support requests, check if we need external research
-                    const supportResponse = await this.supportAgent.process(prompt, userId, contextData)
+                    const supportResponse = await this.supportAgent.process(prompt, userId, enrichedContext)
 
                     if (supportResponse.needsResearch) {
                         // Get research results
                         const researchResults = await this.researchAgent.process(
                             supportResponse.searchQuery || prompt,
-                            userId
+                            userId,
+                            enrichedContext
                         )
 
                         // Add research to context and retry
                         return await this.supportAgent.process(prompt, userId, {
-                            ...contextData,
+                            ...enrichedContext,
                             researchResults: researchResults.content,
                             sourceResults: researchResults.sourceResults
                         })
@@ -180,7 +220,7 @@ class AIService {
 
                 case 'research':
                     // Direct research intent detected
-                    return await this.researchAgent.process(prompt, userId, contextData)
+                    return await this.researchAgent.process(prompt, userId, enrichedContext)
 
                 case 'conversation':
                     // For general conversation, check if we should research in the background
@@ -188,16 +228,16 @@ class AIService {
 
                     if (shouldResearch) {
                         // Start background research (don't await)
-                        this._performBackgroundResearch(prompt, userId).catch(err => {
+                        this._performBackgroundResearch(prompt, userId, enrichedContext).catch(err => {
                             console.error('Background research failed:', err)
                         })
                     }
 
-                    return this.conversationAgent.process(prompt, userId, contextData)
+                    return this.conversationAgent.process(prompt, userId, enrichedContext)
             }
 
             // Fallback to full agent selection process
-            return await this._fullAgentSelection(prompt, userId, contextData)
+            return await this._fullAgentSelection(prompt, userId, enrichedContext)
         } catch (error) {
             this.performance.recordError('generate_response')
 

@@ -1,4 +1,4 @@
-import { aiService } from '../../../services/ai.service.js'
+import { aiService } from '../../../echo-ai/services/ai.service.js'
 
 export default {
     structure: {

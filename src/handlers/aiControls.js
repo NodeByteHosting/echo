@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'
-import { aiService } from '../services/ai.service.js'
+import { aiService } from '../echo-ai/services/ai.service.js'
 import { createResponseControls } from '../components/responseControls.js'
 
 export async function handleAIControls(interaction) {

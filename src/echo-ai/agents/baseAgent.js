@@ -1,4 +1,5 @@
 import { makeSerializable } from '../../utils/serialization.js'
+import { promptService } from '../services/prompt.service.js'
 
 /**
  * Base class for AI agents, providing common functionality
@@ -24,6 +25,12 @@ export class BaseAgent {
     async determineContextNeeded(message, currentContext = {}) {
         const serializableContext = makeSerializable(currentContext)
 
+        // Create context for prompt selection
+        const promptContext = await promptService.createContext(message, {
+            ...currentContext,
+            messageType: 'context_determination'
+        })
+
         const prompt = `As an AI agent, analyze this user message and current context to determine what additional information might be needed to provide the best response. Return only the essential questions, if any.
 
 User message: "${message}"
@@ -31,7 +38,10 @@ Current context: ${JSON.stringify(serializableContext)}
 
 Return format: Array of questions or empty array if no context needed.`
 
-        const response = await this.aiModel.getResponse(prompt)
+        const response = await this.aiModel.getResponse(prompt, {
+            context: promptContext
+        })
+
         try {
             return JSON.parse(response)
         } catch {
@@ -48,7 +58,18 @@ Return format: Array of questions or empty array if no context needed.`
     async generateResponse(message, context) {
         const serializableContext = makeSerializable(context)
 
-        const prompt = `As a specialized ${this.constructor.name}, help the user with their request.
+        // Get agent-specific prompt from prompt service
+        const agentName = this.constructor.name
+        const promptContext = await promptService.createContext(message, {
+            ...context,
+            agentType: agentName
+        })
+
+        const systemPrompt = await promptService.getAgentPrompt(agentName, promptContext)
+
+        // Fall back to a default prompt if agent-specific one isn't available
+        if (!systemPrompt) {
+            const prompt = `As a specialized ${agentName}, help the user with their request.
 
 Available context:
 ${JSON.stringify(serializableContext, null, 2)}
@@ -57,7 +78,17 @@ User message: "${message}"
 
 Provide a helpful, accurate, and detailed response while staying within your specialized domain.`
 
-        return this.aiModel.getResponse(prompt)
+            return this.aiModel.getResponse(message, {
+                systemPrompt: prompt,
+                context: promptContext
+            })
+        }
+
+        // Use the agent-specific prompt
+        return this.aiModel.getResponse(message, {
+            systemPrompt,
+            context: promptContext
+        })
     }
 
     /**

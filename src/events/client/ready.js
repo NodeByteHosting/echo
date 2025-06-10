@@ -1,6 +1,6 @@
 import { Events } from 'discord.js'
-import { log } from '../../functions/logger.js'
-import { aiService } from '../../services/ai.service.js'
+import { log } from '@functions/logger'
+import { aiService } from '@ai/services/ai.service'
 
 export default {
     event: Events.ClientReady,

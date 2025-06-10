@@ -1,5 +1,6 @@
 import { generateText } from 'ai'
-import { aiConfig } from '../configs/ai.config.js'
+import { aiConfig } from '@configs/ai.config'
+import { promptService } from '@ai/services/prompt.service'
 
 /**
  * AI Model wrapper that provides a consistent interface for agents
@@ -7,6 +8,10 @@ import { aiConfig } from '../configs/ai.config.js'
 export class AIModel {
     constructor(provider) {
         this.provider = provider
+        // Initialize prompt service
+        promptService.initialize().catch(err => {
+            console.error('Failed to initialize prompt service:', err)
+        })
     }
 
     /**
@@ -34,14 +39,31 @@ export class AIModel {
             const optimizedPrompt = this._optimizePrompt(message)
 
             // Determine which system prompt to use
-            let systemPrompt = options.systemPrompt || aiConfig.systemPrompt
+            let systemPrompt
 
-            // If a template is specified, use a dedicated prompt
-            if (context.template) {
-                systemPrompt = this._getTemplateSystemPrompt(context.template, systemPrompt)
-            } else {
-                // Otherwise, optimize system prompt based on the query type
-                systemPrompt = this._selectOptimalSystemPrompt(optimizedPrompt, systemPrompt)
+            // If a custom system prompt is provided, use it directly
+            if (options.systemPrompt) {
+                systemPrompt = options.systemPrompt
+            }
+            // If a template name is specified, use the prompt service to get it
+            else if (context.template) {
+                const templateContext = await promptService.createContext(optimizedPrompt, {
+                    ...context,
+                    messageType: context.template
+                })
+                systemPrompt = await promptService.getPromptForContext(templateContext)
+            }
+            // Otherwise, get the appropriate prompt based on message context
+            else {
+                // Create context object for prompt selection
+                const promptContext = await promptService.createContext(optimizedPrompt, context)
+                // Get appropriate prompt based on context
+                systemPrompt = await promptService.getPromptForContext(promptContext)
+            }
+
+            // Fall back to config system prompt if all else fails
+            if (!systemPrompt) {
+                systemPrompt = aiConfig.systemPrompt
             }
 
             // Debug log the system prompt being used (truncated for brevity)
@@ -83,36 +105,16 @@ export class AIModel {
     }
 
     /**
-     * Get template-specific system prompt
+     * Get prompt for specific template
      * @param {string} template - Template name
-     * @param {string} defaultPrompt - Default system prompt
-     * @returns {string} Template-specific system prompt
-     * @private
+     * @param {Object} context - Context for template processing
+     * @returns {Promise<string>} Processed template
      */
-    _getTemplateSystemPrompt(template, defaultPrompt) {
-        const templates = {
-            knowledge_synthesis: `${aiConfig.shortSystemPrompt}
-You are analyzing knowledge base entries to provide a helpful, accurate response.
-Focus on synthesizing information clearly and accurately.
-Always maintain Echo's personality, but prioritize technical accuracy.`,
-
-            research_synthesis: `${aiConfig.technicalPrompt}
-You are analyzing research results from web searches.
-Synthesize the information into a comprehensive answer.
-Cite sources when appropriate and maintain technical accuracy.`,
-
-            technical_support: `${aiConfig.technicalPrompt}
-You are helping with a technical support issue.
-Provide clear, step-by-step instructions.
-Be thorough and consider the user's specific environment and context.`,
-
-            code_analysis: `${aiConfig.technicalPrompt}
-You are analyzing code.
-Focus on correctness, performance, and best practices.
-Provide specific examples and explanations for your recommendations.`
-        }
-
-        return templates[template] || defaultPrompt
+    async getPromptForTemplate(template, context = {}) {
+        return promptService.getPromptForContext({
+            ...context,
+            messageType: template
+        })
     }
 
     /**
@@ -140,42 +142,6 @@ Provide specific examples and explanations for your recommendations.`
         }
 
         return optimized
-    }
-
-    /**
-     * Select the optimal system prompt based on query type
-     * @private
-     */
-    _selectOptimalSystemPrompt(prompt, fullSystemPrompt) {
-        // For very short queries, use the full system prompt
-        if (prompt.length < 50) {
-            return fullSystemPrompt
-        }
-
-        // Extract just the personality and core instructions for longer queries
-        const coreSystemPrompt =
-            fullSystemPrompt.split('Your job is to assist users with:')[0] +
-            'Your job is to assist users with technical support, knowledge, and conversation.'
-
-        // Detect if this needs detailed technical info
-        const needsDetailedTechnical =
-            prompt.includes('code') ||
-            prompt.includes('error') ||
-            prompt.includes('how to') ||
-            prompt.includes('config')
-
-        if (needsDetailedTechnical) {
-            // Add the technical response guidelines
-            return (
-                coreSystemPrompt +
-                '\n\n**When answering technical questions:**\n' +
-                '- Give direct, clear instructions with minimal fluff.\n' +
-                '- Include code or config examples wherever helpful.\n' +
-                '- Warn users about risks or common pitfalls with a sly comment.\n'
-            )
-        }
-
-        return coreSystemPrompt
     }
 
     /**

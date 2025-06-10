@@ -1,6 +1,7 @@
 import { BaseAgent } from './baseAgent.js'
 import { log } from '../../functions/logger.js'
 import { db } from '../../database/client.js'
+import { promptService } from '../services/prompt.service.js'
 
 export class TechnicalSupportAgent extends BaseAgent {
     constructor(aiModel) {
@@ -62,9 +63,14 @@ export class TechnicalSupportAgent extends BaseAgent {
 
         // For ambiguous cases, use AI to determine
         if (isMediumPriority || isLowPriority) {
+            // Create context for prompt selection
+            const promptContext = await promptService.createContext(message, {
+                messageType: 'support_classification'
+            })
+
             // Ask AI if this requires technical support
-            const response = await this.aiModel
-                .getResponse(`Determine if this message requires technical support or just knowledge sharing:
+            const response = await this.aiModel.getResponse(
+                `Determine if this message requires technical support or just knowledge sharing:
 Message: "${message}"
 
 Consider:
@@ -73,7 +79,9 @@ Consider:
 3. Do they explicitly ask for support or help fixing something?
 4. Is this just a request for information or explanation?
 
-Return ONLY: "support" if they need technical support, or "knowledge" if they just need information.`)
+Return ONLY: "support" if they need technical support, or "knowledge" if they just need information.`,
+                { context: promptContext }
+            )
 
             return response.toLowerCase().includes('support')
         }
@@ -157,35 +165,18 @@ Return ONLY: "support" if they need technical support, or "knowledge" if they ju
 
             // If no knowledge base answer or needs more specific help
             if (!response) {
-                // Check if research is needed
-                const needsResearch = await this.aiModel.getResponse({
-                    message: `Check if this technical support query needs external research: "${message}"
-                    Consider:
-                    1. Is it a complex technical issue?
-                    2. Does it involve specific error messages or codes?
-                    3. Would external documentation or resources help?
-                    4. Is it not covered by our standard knowledge base?
-                    
-                    Return true or false`,
-                    context: { template: 'research_check' }
+                // Create context for prompt selection
+                const supportContext = await promptService.createContext(message, {
+                    ...contextData,
+                    messageType: 'technical_support',
+                    ticketId: ticket?.id,
+                    ticketStatus: ticket?.status
                 })
 
-                if (needsResearch.toLowerCase().includes('true')) {
-                    response = await this.performResearch(message)
-                } else {
-                    // Generate standard AI response if no research needed
-                    response = await this.aiModel.getResponse({
-                        message,
-                        context: {
-                            userContext: {
-                                ...contextData,
-                                ticketId: ticket?.id,
-                                ticketStatus: ticket?.status
-                            },
-                            template: 'technical_support'
-                        }
-                    })
-                }
+                // Generate standard AI response if no research needed
+                response = await this.aiModel.getResponse(message, {
+                    context: supportContext
+                })
             }
 
             // Add ticket info to response if a ticket was created

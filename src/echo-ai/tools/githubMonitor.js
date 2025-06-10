@@ -1,7 +1,7 @@
 import { Octokit } from 'octokit'
-import { log } from '../../functions/logger.js'
 import { EventEmitter } from 'events'
-import { db } from '../../database/client.js'
+import { db } from '@database/client'
+import { log } from '@functions/logger'
 
 /**
  * Service for monitoring GitHub repositories and commits

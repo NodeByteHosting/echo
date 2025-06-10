@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-import Indexie from './class/client.js'
+import Indexie from '@classes/client'
 
 dotenv.config()
 

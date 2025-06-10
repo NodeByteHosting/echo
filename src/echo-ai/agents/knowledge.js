@@ -1,6 +1,7 @@
 import { BaseAgent } from './baseAgent.js'
 import { db } from '../../database/client.js'
 import { memoize } from '../../utils/performanceOptimizer.js'
+import { promptService } from '../services/prompt.service.js'
 
 export class KnowledgeAgent extends BaseAgent {
     constructor(aiModel) {
@@ -40,9 +41,14 @@ export class KnowledgeAgent extends BaseAgent {
     }
 
     async _canHandleImplementation(message) {
+        // Create context for prompt selection
+        const knowledgeContext = await promptService.createContext(message, {
+            messageType: 'knowledge_classification'
+        })
+
         // Original implementation but only called when needed
-        const response = await this.aiModel
-            .getResponse(`Determine if this message is primarily seeking knowledge or information:
+        const response = await this.aiModel.getResponse(
+            `Determine if this message is primarily seeking knowledge or information:
 Message: "${message}"
 
 Consider:
@@ -51,7 +57,9 @@ Consider:
 3. Is it asking about how something works?
 4. Is it seeking definitions or explanations?
 
-Return: true or false`)
+Return: true or false`,
+            { context: knowledgeContext }
+        )
 
         return response.toLowerCase().includes('true')
     }
@@ -379,17 +387,19 @@ Return only the title text, no quotes or explanation.`
     // Ensure the synthesize method never returns empty content
     async synthesize(message, results) {
         try {
-            const response = await this.aiModel.getResponse({
-                message,
-                context: {
-                    knowledgeResults: results.map(r => ({
-                        title: r.title,
-                        content: r.content,
-                        category: r.category,
-                        rating: r.rating
-                    })),
-                    template: 'knowledge_synthesis'
-                }
+            // Create context for knowledge synthesis
+            const synthesisContext = await promptService.createContext(message, {
+                messageType: 'knowledge_synthesis',
+                knowledgeResults: results.map(r => ({
+                    title: r.title,
+                    content: r.content,
+                    category: r.category,
+                    rating: r.rating
+                }))
+            })
+
+            const response = await this.aiModel.getResponse(message, {
+                context: synthesisContext
             })
 
             // Fallback if response is empty

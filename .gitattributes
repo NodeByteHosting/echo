@@ -1,0 +1,2 @@
+*.echo linguist-language=Markdown
+*.echo linguist-detectable=true

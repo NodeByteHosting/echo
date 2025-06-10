@@ -1,4 +1,4 @@
-import { aiService } from '../services/ai.service.js'
+import { aiService } from '../echo-ai/services/ai.service.js'
 import { detectAndResolvePeople, formatPeopleMentions } from '../utils/personaManager.js'
 import { makeSerializable } from '../utils/serialization.js'
 import { withTimeout } from '../utils/promises.js'

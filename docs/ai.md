@@ -66,6 +66,30 @@ Echo's AI system is built on a sophisticated multi-agent architecture designed t
         - Dependency analysis
         - Coverage analysis
 
+## Prompt System
+
+Echo uses a dynamic, file-based prompt system that significantly enhances its flexibility and maintainability:
+
+### Key Features
+
+- **Template-Based**: Prompts are stored as template files with the `.echo` extension
+- **Context-Aware**: Templates can include variables, conditionals, and loops
+- **Centralized Management**: All prompts are managed by the `promptService`
+- **Extensible**: New templates can be added without code changes
+- **Versioned**: Templates are stored in version control for tracking changes
+- **Hot-Reloadable**: Templates can be reloaded without restarting the service
+
+### Prompt Selection Logic
+
+The system automatically selects the most appropriate prompt based on:
+
+1. Message context (DM vs. server)
+2. Detected entities (users, channels, roles)
+3. Message type (conversation, technical, knowledge, etc.)
+4. Agent type (which specialized agent is handling the request)
+
+For complete details, see [Prompt System Documentation](./prompts.md).
+
 ## System Integration
 
 ### Agent Collaboration Patterns

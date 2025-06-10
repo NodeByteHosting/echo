@@ -1,8 +1,8 @@
 import { BaseAgent } from './baseAgent.js'
 import { db } from '../../database/client.js'
 import { EmbedBuilder } from 'discord.js'
-import { aiConfig } from '../../configs/ai.config.js'
 import { makeSerializable } from '../../utils/serialization.js'
+import { promptService } from '../services/prompt.service.js'
 
 export class ConversationAgent extends BaseAgent {
     constructor(aiModel) {
@@ -48,8 +48,16 @@ export class ConversationAgent extends BaseAgent {
         // Make history serializable by converting BigInts to strings
         const serializableHistory = makeSerializable(history)
 
+        // Create context for analysis
+        const analysisContext = await promptService.createContext(message, {
+            ...contextData,
+            messageType: 'conversation_analysis',
+            history: serializableHistory
+        })
+
         // Get AI to determine conversation intent and style
-        const analysis = await this.aiModel.getResponse(`Analyze this message in the context of the conversation:
+        const analysis = await this.aiModel.getResponse(
+            `Analyze this message in the context of the conversation:
 Message: "${message}"
 History: ${JSON.stringify(serializableHistory)}
 
@@ -59,7 +67,9 @@ Determine:
 3. Required response format
 4. Whether previous context is relevant
 
-Return JSON only in this format: {"style":"value","intent":"value","format":"value","useContext":true/false}`)
+Return JSON only in this format: {"style":"value","intent":"value","format":"value","useContext":true/false}`,
+            { context: analysisContext }
+        )
 
         // Safely parse the JSON with error handling
         let messageContext
@@ -76,9 +86,25 @@ Return JSON only in this format: {"style":"value","intent":"value","format":"val
             }
         }
 
-        // Build conversation-aware prompt
-        const enhancedPrompt = await this._buildConversationPrompt(message, history, messageContext, contextData)
-        const response = await this.aiModel.getResponse(enhancedPrompt)
+        // Create context for response generation
+        const responseContext = await promptService.createContext(message, {
+            ...contextData,
+            messageType: 'conversation',
+            messageStyle: messageContext.style,
+            messageIntent: messageContext.intent,
+            messageFormat: messageContext.format,
+            useContext: messageContext.useContext,
+            history: messageContext.useContext ? history : []
+        })
+
+        // Get conversation prompt from prompt service
+        const conversationPrompt = await promptService.getPromptForContext(responseContext)
+
+        // Generate response using the conversation prompt
+        const response = await this.aiModel.getResponse(message, {
+            systemPrompt: conversationPrompt,
+            context: responseContext
+        })
 
         // Save messages to history
         await Promise.all([this._saveMessage(userId, message, false), this._saveMessage(userId, response, true)])

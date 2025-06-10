@@ -1,11 +1,12 @@
 import { Events } from 'discord.js'
-import { aiService } from '../../services/ai.service.js'
-import { db } from '../../database/client.js'
-import { detectAndResolvePeople, formatPeopleMentions } from '../../utils/personaManager.js'
-import { makeSerializable } from '../../utils/serialization.js'
-import { MessageHandler } from '../../handlers/message.handler.js'
-import { ResponseService } from '../../services/response.service.js'
-import { TypingService } from '../../services/typing.service.js'
+
+import { db } from '@database/client'
+import { MessageHandler } from '@handlers/message.handler'
+
+import { aiService } from '@ai/services/ai.service'
+import { ResponseService } from '@ai/services/response.service'
+import { TypingService } from '@ai/services/typing.service'
+import { promptService } from '@ai/services/prompt.service'
 
 const COMMANDS = {
     help: ['help', 'h'],
@@ -24,7 +25,7 @@ export default {
             return null
         }
 
-        // Initialize handlers and services
+        // Initialize services
         const messageHandler = new MessageHandler(client, message)
         const responseService = new ResponseService()
         const typingService = new TypingService()
@@ -76,19 +77,99 @@ export default {
                 const database = db.getInstance()
                 await database.users.upsertDiscordUser(message.author)
             } catch (error) {
-                console.error('Failed to update user record, but continuing with message processing:', error)
+                console.error('Failed to update user record:', error)
             }
 
-            // Handle reply to bot
-            if (isReplyToBot && referencedMessage) {
-                return await messageHandler.handleReplyToBot(referencedMessage)
-            }
+            // Start typing immediately for better UX
+            const typingController = typingService.startTyping(message.channel)
 
-            // Handle as AI chat
-            await messageHandler.handleAIChat(content, isDM, typingService, responseService)
+            try {
+                // Create base context data for the message
+                const contextData = await promptService.createContext(content, {
+                    guild: message.guild,
+                    channel: message.channel,
+                    author: message.author,
+                    isDM,
+                    isReply,
+                    isReplyToBot,
+                    referencedMessage,
+                    userInfo: {
+                        id: message.author.id,
+                        username: message.author.username,
+                        displayName: message.author.displayName,
+                        avatar: message.author.avatarURL()
+                    }
+                })
+
+                // Handle reply to bot
+                if (isReplyToBot && referencedMessage) {
+                    const response = await aiService.generateResponse(content, message.author.id, {
+                        ...contextData,
+                        isReplyContext: true,
+                        originalMessage: referencedMessage.content
+                    })
+
+                    // Stop typing
+                    typingController.stop()
+
+                    // Send response
+                    await responseService.sendResponse(message, response.content)
+                    return null
+                }
+
+                // Handle regular message
+                const response = await aiService.generateResponse(content, message.author.id, contextData)
+
+                // Stop typing
+                typingController.stop()
+
+                // Check for response error
+                if (response.error) {
+                    console.error(`AI Service Error: ${response.error}`)
+                    await message
+                        .reply({
+                            content: `I encountered an error: ${response.error}`
+                        })
+                        .catch(err => console.error('Failed to send error reply:', err))
+                    return null
+                }
+
+                // Send the response
+                let responseContent = response.content || "I couldn't generate a proper response. Please try again."
+
+                // Format any mentions if needed
+                if (response.shouldMention && response.detectedEntities?.length > 0) {
+                    const mentionsFormatter = (await import('../../utils/personaManager.js')).formatPeopleMentions
+                    const mentions = mentionsFormatter(
+                        response.detectedEntities,
+                        response.type === 'person_mention_response'
+                    )
+
+                    if (mentions) {
+                        console.log(`Adding mentions to response: ${mentions}`)
+                        responseContent = `${mentions} ${responseContent}`
+                    }
+                }
+
+                // Send the response
+                await responseService.sendResponse(message, responseContent)
+            } catch (error) {
+                // Stop typing on error
+                typingController.stop()
+
+                console.error('Error processing message:', error)
+                aiService.performance.recordError('message_processing')
+
+                await message
+                    .reply({
+                        content: 'I encountered an error while processing your message. Please try again later.'
+                    })
+                    .catch(() => {})
+            }
         } catch (error) {
-            console.error('Error processing message:', error)
+            console.error('Critical error in message handler:', error)
         }
+
         return null
     }
 }

@@ -2,6 +2,7 @@ import { BaseAgent } from './baseAgent.js'
 import { TicketStatus } from '@prisma/client'
 import { log } from '../../functions/logger.js'
 import { db } from '../../database/client.js'
+import { promptService } from '../services/prompt.service.js'
 import {
     ChannelType,
     PermissionFlagsBits,
@@ -44,9 +45,14 @@ export class TicketAgent extends BaseAgent {
             return true
         }
 
+        // Create context for prompt selection
+        const ticketContext = await promptService.createContext(message, {
+            messageType: 'ticket_classification'
+        })
+
         // Use AI to determine if this is a ticket request for more nuanced cases
-        const response = await this.aiModel
-            .getResponse(`Determine if this message is explicitly requesting to create a support ticket or talk to staff:
+        const response = await this.aiModel.getResponse(
+            `Determine if this message is explicitly requesting to create a support ticket or talk to staff:
 Message: "${message}"
 
 Consider:
@@ -55,7 +61,9 @@ Consider:
 3. Are they requesting formal support for a critical issue?
 4. Is this an urgent request that needs staff attention?
 
-Return ONLY: "ticket" if they're requesting a ticket or staff help, or "no-ticket" otherwise.`)
+Return ONLY: "ticket" if they're requesting a ticket or staff help, or "no-ticket" otherwise.`,
+            { context: ticketContext }
+        )
 
         return response.toLowerCase().includes('ticket')
     }
@@ -342,22 +350,21 @@ Return ONLY: "ticket" if they're requesting a ticket or staff help, or "no-ticke
      * @returns {Promise<string>} The response text
      */
     async generateTicketResponse(message, ticket, analysis, thread) {
-        const responsePrompt = `Generate a response for a user who just created a support ticket.
-Original request: "${message}"
-Ticket summary: ${analysis.summary}
-Priority: ${analysis.priority}/5
-Category: ${analysis.category}
-
-Write a brief, reassuring response as Echo, acknowledging that:
-1. A support ticket (#${ticket.id}) has been created in a private thread
-2. Support staff have been notified and will assist them soon
-3. They should check the thread for next steps
-4. The thread is accessible via this link: <#${thread.id}>
-
-Keep the response under 1000 characters and maintain a helpful, professional tone.`
+        // Create context for prompt selection
+        const ticketContext = await promptService.createContext(message, {
+            messageType: 'ticket_confirmation',
+            ticketId: ticket.id,
+            ticketSummary: analysis.summary,
+            ticketPriority: analysis.priority,
+            ticketCategory: analysis.category,
+            threadId: thread.id
+        })
 
         try {
-            const response = await this.aiModel.getResponse(responsePrompt)
+            // Use the ticket confirmation prompt
+            const response = await this.aiModel.getResponse(message, {
+                context: ticketContext
+            })
 
             // Ensure the thread link is included
             if (!response.includes(thread.id)) {

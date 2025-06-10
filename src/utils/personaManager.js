@@ -1,6 +1,7 @@
 /**
  * Utility for managing the AI's persona and responding according to character
  */
+import { promptService } from '../echo-ai/services/prompt.service.js'
 
 /**
  * Check if a message might be asking about the AI's persona or identity
@@ -71,42 +72,34 @@ export function mentionsPersonaRelationships(message) {
 
     const normalizedMessage = message.toLowerCase()
 
-    // People mentioned in the system prompt
-    const people = [
-        'pixel',
-        'codemeapixel',
-        'exa',
-        'callmeabyte',
-        'indie',
-        'indieonpawtrol',
-        'connor',
-        'connor200024',
-        'harley',
-        'harley200317',
-        'rizon',
-        'rizonftw',
-        'rootspring',
-        'select',
-        'ranveersoni',
-        'quin',
-        'purrquinox'
-    ]
+    // Get all known individual aliases for checking
+    const allAliases = Object.values(KNOWN_INDIVIDUALS).flatMap(person => person.aliases)
 
-    return people.some(person => normalizedMessage.includes(person))
+    // Check if any alias is mentioned in the message
+    return allAliases.some(alias => normalizedMessage.includes(alias.toLowerCase()))
 }
 
 /**
  * Create a specialized system prompt for persona-focused queries
  * @param {string} basePrompt - The base system prompt
  * @param {string} message - The user's message
- * @returns {string} A specialized system prompt
+ * @returns {Promise<string>} A specialized system prompt
  */
-export function createPersonaPrompt(basePrompt, message) {
-    // Extract the personality description from the base prompt
-    const personalitySection = basePrompt.split('Your job is to assist users with:')[0]
+export async function createPersonaPrompt(basePrompt, message) {
+    // Use prompt service instead of hardcoded template
+    try {
+        const promptContext = await promptService.createContext(message, {
+            messageType: 'persona',
+            message: message
+        })
 
-    // Create a focused prompt that emphasizes staying in character
-    return `${personalitySection}
+        return await promptService.getPromptForContext(promptContext)
+    } catch (err) {
+        console.error('Error loading persona prompt:', err)
+        // Fallback to original implementation if prompt service fails
+        const personalitySection = basePrompt.split('Your job is to assist users with:')[0]
+
+        return `${personalitySection}
 
 IMPORTANT: The user is asking about your identity, preferences, or relationships.
 Respond in character as Echo, the NodeByte fox mascot. Be authentic to your 
@@ -118,6 +111,7 @@ Remember your relationships:
 - Your personality is snarky, direct, and honest but technically brilliant
 
 Stay completely in character in your response.`
+    }
 }
 
 /**
@@ -140,13 +134,43 @@ export const KNOWN_INDIVIDUALS = {
 }
 
 /**
+ * Loads relationship data from a JSON file or API
+ * @param {string} source - Path to JSON file or API endpoint
+ * @returns {Promise<Object>} Updated relationships data
+ */
+export async function loadRelationshipData(source) {
+    try {
+        // If source is a local file
+        if (source.startsWith('file://')) {
+            const filePath = source.replace('file://', '')
+            const fs = await import('fs/promises')
+            const data = await fs.readFile(filePath, 'utf8')
+            return JSON.parse(data)
+        }
+
+        // If source is a URL
+        if (source.startsWith('http')) {
+            const response = await fetch(source)
+            return await response.json()
+        }
+
+        console.log('Invalid source format for relationship data')
+        return null
+    } catch (error) {
+        console.error('Error loading relationship data:', error)
+        return null
+    }
+}
+
+/**
  * Check if a message mentions known individuals and attempts to resolve them
  * @param {string} message - The message to check
  * @param {Object} guild - The Discord guild where the message was sent
+ * @param {Object} options - Additional options
  * @returns {Object} Object containing detections and resolved IDs
  */
-export async function detectAndResolvePeople(message, guild) {
-    if (!message || !guild) {
+export async function detectAndResolvePeople(message, guild, options = {}) {
+    if (!message) {
         return { detected: false, mentions: [] }
     }
 
@@ -209,6 +233,7 @@ export async function detectAndResolvePeople(message, guild) {
                     detectedPeople.push({
                         key,
                         name: key,
+                        type: 'user',
                         knownId: person.id,
                         resolvedId: null,
                         foundInGuild: false,
@@ -220,86 +245,51 @@ export async function detectAndResolvePeople(message, guild) {
         }
     }
 
+    // New: Check for channel mentions
+    const channelMentions = detectChannelMentions(message, guild)
+    detectedPeople.push(...channelMentions)
+
+    // New: Check for role mentions
+    const roleMentions = await detectRoleMentions(message, guild)
+    detectedPeople.push(...roleMentions)
+
     // Third pass: Try to resolve the people in the current guild
     if (detectedPeople.length > 0 && guild) {
-        console.log(`🦊 personaManager: Found ${detectedPeople.length} people to resolve in guild`)
+        console.log(`🦊 personaManager: Found ${detectedPeople.length} entities to resolve in guild`)
 
         try {
-            // For each detected person, try to find them in the guild
-            for (const person of detectedPeople) {
+            // For each detected entity, try to find them in the guild
+            for (const entity of detectedPeople) {
+                // Skip resolution for non-user types that are already resolved
+                if (entity.type !== 'user' && entity.resolvedId) {
+                    continue
+                }
+
                 try {
-                    // First try with the known ID
-                    console.log(`🦊 personaManager: Trying to fetch member with ID: ${person.knownId}`)
-
-                    const member = await guild.members.fetch(person.knownId).catch(err => {
-                        console.log(`🦊 personaManager: Couldn't fetch by ID: ${err.message}`)
-                        return null
-                    })
-
-                    if (member) {
-                        person.resolvedId = member.id
-                        person.foundInGuild = true
-                        console.log(`🦊 personaManager: ✅ Found ${person.name} in guild with ID ${person.resolvedId}`)
-                        continue
-                    }
-
-                    // If not found by ID, try to find by username/nickname
-                    console.log(`🦊 personaManager: Trying to find ${person.name} by username/nickname`)
-
-                    // Fetch with a reasonable limit to avoid API overload
-                    let members
-                    try {
-                        members = await guild.members.fetch({ limit: 100 })
-                        console.log(`🦊 personaManager: Fetched ${members.size} members`)
-                    } catch (fetchErr) {
-                        console.error(`🦊 personaManager: Error fetching guild members: ${fetchErr.message}`)
-                        members = guild.members.cache
-                        console.log(`🦊 personaManager: Using cached members (${members.size})`)
-                    }
-
-                    const foundMember = members.find(m => {
-                        const username = m.user.username.toLowerCase()
-                        const nickname = m.nickname?.toLowerCase() || ''
-
-                        // Check if username or nickname matches the person's name or aliases
-                        const nameMatch =
-                            username === person.name.toLowerCase() || nickname === person.name.toLowerCase()
-
-                        const aliasMatch = KNOWN_INDIVIDUALS[person.key].aliases.some(alias => {
-                            const lowerAlias = alias.toLowerCase()
-                            return username.includes(lowerAlias) || nickname.includes(lowerAlias)
-                        })
-
-                        return nameMatch || aliasMatch
-                    })
-
-                    if (foundMember) {
-                        person.resolvedId = foundMember.id
-                        person.foundInGuild = true
-                        console.log(
-                            `🦊 personaManager: ✅ Found ${person.name} by name/alias with ID ${person.resolvedId}`
-                        )
-                    } else {
-                        console.log(`🦊 personaManager: ❌ Could not find ${person.name} in guild members`)
+                    // For users, use existing resolution logic
+                    if (entity.type === 'user') {
+                        await resolveUserInGuild(entity, guild)
                     }
                 } catch (err) {
-                    console.error(`🦊 personaManager: Error resolving member for ${person.name}:`, err)
+                    console.error(`🦊 personaManager: Error resolving ${entity.type} for ${entity.name}:`, err)
                 }
             }
         } catch (err) {
-            console.error('🦊 personaManager: Error in guild member resolution:', err)
+            console.error('🦊 personaManager: Error in guild entity resolution:', err)
         }
     }
 
     // Always ping if we successfully resolved someone in the guild
-    const foundPeople = detectedPeople.filter(p => p.foundInGuild)
-    if (foundPeople.length > 0) {
-        console.log(`🦊 personaManager: Successfully resolved ${foundPeople.length} people in guild!`)
-        for (const person of foundPeople) {
-            console.log(`🦊 personaManager: - ${person.name} (${person.resolvedId}), isDirect: ${person.isDirect}`)
+    const foundEntities = detectedPeople.filter(p => p.foundInGuild || p.resolvedId)
+    if (foundEntities.length > 0) {
+        console.log(`🦊 personaManager: Successfully resolved ${foundEntities.length} entities in guild!`)
+        for (const entity of foundEntities) {
+            console.log(
+                `🦊 personaManager: - ${entity.type}: ${entity.name} (${entity.resolvedId}), isDirect: ${entity.isDirect || false}`
+            )
         }
     } else if (detectedPeople.length > 0) {
-        console.log(`🦊 personaManager: Detected people but couldn't resolve any in this guild`)
+        console.log(`🦊 personaManager: Detected entities but couldn't resolve any in this guild`)
     }
 
     return {
@@ -309,27 +299,272 @@ export async function detectAndResolvePeople(message, guild) {
 }
 
 /**
- * Format detected people as Discord mentions
- * @param {Array} detectedPeople - The array of detected people
- * @param {boolean} mentionAll - Whether to mention all detected people or just one
+ * Resolve a user in the guild
+ * @param {Object} person - The person to resolve
+ * @param {Object} guild - The Discord guild
+ */
+async function resolveUserInGuild(person, guild) {
+    // First try with the known ID
+    console.log(`🦊 personaManager: Trying to fetch member with ID: ${person.knownId}`)
+
+    const member = await guild.members.fetch(person.knownId).catch(err => {
+        console.log(`🦊 personaManager: Couldn't fetch by ID: ${err.message}`)
+        return null
+    })
+
+    if (member) {
+        person.resolvedId = member.id
+        person.foundInGuild = true
+        console.log(`🦊 personaManager: ✅ Found ${person.name} in guild with ID ${person.resolvedId}`)
+        return
+    }
+
+    // If not found by ID, try to find by username/nickname
+    console.log(`🦊 personaManager: Trying to find ${person.name} by username/nickname`)
+
+    // Fetch with a reasonable limit to avoid API overload
+    let members
+    try {
+        members = await guild.members.fetch({ limit: 100 })
+        console.log(`🦊 personaManager: Fetched ${members.size} members`)
+    } catch (fetchErr) {
+        console.error(`🦊 personaManager: Error fetching guild members: ${fetchErr.message}`)
+        members = guild.members.cache
+        console.log(`🦊 personaManager: Using cached members (${members.size})`)
+    }
+
+    const foundMember = members.find(m => {
+        const username = m.user.username.toLowerCase()
+        const nickname = m.nickname?.toLowerCase() || ''
+        const displayName = m.displayName?.toLowerCase() || ''
+
+        // Check if username, nickname or display name matches the person's name or aliases
+        const nameMatch =
+            username === person.name.toLowerCase() ||
+            nickname === person.name.toLowerCase() ||
+            displayName === person.name.toLowerCase()
+
+        const aliasMatch = KNOWN_INDIVIDUALS[person.key].aliases.some(alias => {
+            const lowerAlias = alias.toLowerCase()
+            return username.includes(lowerAlias) || nickname.includes(lowerAlias) || displayName.includes(lowerAlias)
+        })
+
+        return nameMatch || aliasMatch
+    })
+
+    if (foundMember) {
+        person.resolvedId = foundMember.id
+        person.foundInGuild = true
+        console.log(`🦊 personaManager: ✅ Found ${person.name} by name/alias with ID ${person.resolvedId}`)
+    } else {
+        console.log(`🦊 personaManager: ❌ Could not find ${person.name} in guild members`)
+    }
+}
+
+/**
+ * Detect channel mentions in a message
+ * @param {string} message - The message to check
+ * @param {Object} guild - The Discord guild
+ * @returns {Array} Array of detected channel objects
+ */
+function detectChannelMentions(message, guild) {
+    if (!message || !guild) {
+        return []
+    }
+
+    const detectedChannels = []
+
+    // Check for #channel-name mentions
+    const channelRegex = /#([\w-]+)/g
+    const channelMatches = [...message.matchAll(channelRegex)]
+
+    if (channelMatches.length > 0) {
+        for (const match of channelMatches) {
+            const channelName = match[1].toLowerCase()
+
+            // Try to find the channel in the guild
+            const channel = guild.channels.cache.find(
+                c =>
+                    c.name.toLowerCase() === channelName ||
+                    c.name.toLowerCase().replace(/-/g, '') === channelName.replace(/-/g, '')
+            )
+
+            if (channel) {
+                detectedChannels.push({
+                    name: channel.name,
+                    type: 'channel',
+                    resolvedId: channel.id,
+                    foundInGuild: true,
+                    isDirect: false
+                })
+                console.log(`🦊 personaManager: Found channel #${channel.name} with ID ${channel.id}`)
+            }
+        }
+    }
+
+    return detectedChannels
+}
+
+/**
+ * Detect role mentions in a message
+ * @param {string} message - The message to check
+ * @param {Object} guild - The Discord guild
+ * @returns {Array} Array of detected role objects
+ */
+async function detectRoleMentions(message, guild) {
+    if (!message || !guild) {
+        return []
+    }
+
+    const detectedRoles = []
+
+    // Check for @role mentions
+    const roleRegex = /@([^\s]+)/g
+    const roleMatches = [...message.matchAll(roleRegex)]
+
+    if (roleMatches.length > 0) {
+        // Ensure roles are fetched
+        let roles
+        try {
+            roles = await guild.roles.fetch()
+        } catch (error) {
+            console.error('Error fetching roles:', error)
+            roles = guild.roles.cache
+        }
+
+        for (const match of roleMatches) {
+            const roleName = match[1].toLowerCase()
+
+            // Skip if it looks like a user mention
+            if (roleName.match(/^\d+$/)) {
+                continue
+            }
+
+            // Try to find the role in the guild
+            const role = roles.find(
+                r =>
+                    r.name.toLowerCase() === roleName ||
+                    r.name.toLowerCase().replace(/\s+/g, '') === roleName.replace(/\s+/g, '')
+            )
+
+            if (role) {
+                detectedRoles.push({
+                    name: role.name,
+                    type: 'role',
+                    resolvedId: role.id,
+                    foundInGuild: true,
+                    isDirect: false
+                })
+                console.log(`🦊 personaManager: Found role @${role.name} with ID ${role.id}`)
+            }
+        }
+    }
+
+    return detectedRoles
+}
+
+/**
+ * Format detected entities as Discord mentions
+ * @param {Array} detectedEntities - The array of detected entities
+ * @param {boolean} mentionAll - Whether to mention all detected entities or just one
+ * @param {Object} options - Additional options for formatting
  * @returns {string} Formatted mentions
  */
-export function formatPeopleMentions(detectedPeople, mentionAll = false) {
-    if (!detectedPeople || detectedPeople.length === 0) {
+export function formatPeopleMentions(detectedEntities, mentionAll = false, options = {}) {
+    if (!detectedEntities || detectedEntities.length === 0) {
         return ''
     }
 
-    // Only mention people found in the guild
-    const mentionable = detectedPeople.filter(p => p.foundInGuild)
+    // Only mention entities found in the guild
+    const mentionable = detectedEntities.filter(p => p.foundInGuild || p.resolvedId)
     if (mentionable.length === 0) {
         return ''
     }
 
-    console.log(`🦊 personaManager: Formatting mentions for ${mentionable.length} people, mentionAll=${mentionAll}`)
+    console.log(`🦊 personaManager: Formatting mentions for ${mentionable.length} entities, mentionAll=${mentionAll}`)
 
-    // If mentionAll is false, just mention the first person
-    const toMention = mentionAll ? mentionable : [mentionable[0]]
+    // If mentionAll is false, just mention the first entity of each type
+    let toMention = mentionAll ? mentionable : []
 
-    // Format the mentions - keep it simple and reliable
-    return toMention.map(p => `<@${p.resolvedId}>`).join(' ')
+    if (!mentionAll) {
+        // Group by type and take first of each type
+        const typeGroups = {}
+        for (const entity of mentionable) {
+            if (!typeGroups[entity.type]) {
+                typeGroups[entity.type] = entity
+            }
+        }
+        toMention = Object.values(typeGroups)
+    }
+
+    // Format the mentions based on entity type
+    return toMention
+        .map(entity => {
+            switch (entity.type) {
+                case 'user':
+                    return `<@${entity.resolvedId}>`
+                case 'channel':
+                    return `<#${entity.resolvedId}>`
+                case 'role':
+                    return `<@&${entity.resolvedId}>`
+                default:
+                    return `<@${entity.resolvedId}>`
+            }
+        })
+        .join(' ')
+}
+
+/**
+ * Create a specialized context object for response generation
+ * @param {string} message - The user's message
+ * @param {Object} guild - The Discord guild
+ * @param {Object} user - The user who sent the message
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Context object for response generation
+ */
+export async function createContextForResponse(message, guild, user, options = {}) {
+    // Detect entities in message
+    const entityDetection = await detectAndResolvePeople(message, guild, options)
+
+    // Create context object that can be used with prompt service
+    const context = {
+        message,
+        guild: guild
+            ? {
+                  id: guild.id,
+                  name: guild.name,
+                  memberCount: guild.memberCount
+              }
+            : null,
+        user: {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName
+        },
+        platform: 'discord',
+        isDM: !guild,
+        detectedEntities: entityDetection.mentions,
+        shouldMention: entityDetection.detected
+    }
+
+    return context
+}
+
+/**
+ * Parse a Discord message for all types of mentions
+ * @param {Message} message - Discord.js message object
+ * @returns {Object} Object containing all parsed mentions
+ */
+export function parseAllMentions(message) {
+    if (!message) {
+        return { users: [], channels: [], roles: [] }
+    }
+
+    return {
+        users: Array.from(message.mentions.users.values()),
+        channels: Array.from(message.mentions.channels.values()),
+        roles: Array.from(message.mentions.roles.values()),
+        everyone: message.mentions.everyone,
+        raw: message.content.match(/<(@|@&|#)!?(\d+)>/g) || []
+    }
 }

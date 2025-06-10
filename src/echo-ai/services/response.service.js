@@ -127,6 +127,11 @@ export class ResponseService {
             chunks.push(currentChunk)
         }
 
+        // Add part numbers if there are multiple parts
+        if (chunks.length > 1) {
+            return chunks.map((chunk, i) => `[Part ${i + 1}/${chunks.length}]\n${chunk}`)
+        }
+
         return chunks
     }
 }

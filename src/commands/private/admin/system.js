@@ -1,5 +1,8 @@
 import { cmdTypes } from '../../../configs/cmdTypes.config.js'
-import { aiService } from '../../../services/ai.service.js'
+import { aiService } from '../../../echo-ai/services/ai.service.js'
+import { promptService } from '../../../echo-ai/services/prompt.service.js'
+import fs from 'fs/promises'
+import path from 'path'
 
 export default {
     structure: {
@@ -46,6 +49,30 @@ export default {
                 name: 'reset_metrics',
                 description: 'Reset performance metrics counters',
                 type: cmdTypes.SUB_COMMAND
+            },
+            {
+                name: 'prompts',
+                description: 'Manage AI prompts',
+                type: cmdTypes.SUB_COMMAND,
+                options: [
+                    {
+                        name: 'action',
+                        description: 'Action to perform with prompts',
+                        type: cmdTypes.STRING,
+                        required: true,
+                        choices: [
+                            { name: 'list', value: 'list' },
+                            { name: 'reload', value: 'reload' },
+                            { name: 'view', value: 'view' }
+                        ]
+                    },
+                    {
+                        name: 'prompt_name',
+                        description: 'Name of the prompt to view',
+                        type: cmdTypes.STRING,
+                        required: false
+                    }
+                ]
             }
         ]
     },
@@ -136,6 +163,85 @@ export default {
                     return interaction.editReply({
                         content: '✅ Successfully reset all performance metrics.'
                     })
+                }
+
+                case 'prompts': {
+                    const action = interaction.options.getString('action')
+                    const promptName = interaction.options.getString('prompt_name')
+
+                    switch (action) {
+                        case 'list': {
+                            // List all available prompts
+                            const promptsDir = 'd://@nodebyte/echo/prompts'
+                            const files = await fs.readdir(promptsDir)
+
+                            const promptFiles = files
+                                .filter(file => file.endsWith('.echo') || file.endsWith('.md') || file.endsWith('.txt'))
+                                .map(file => {
+                                    const extension = path.extname(file)
+                                    const name = file.slice(0, -extension.length)
+                                    return { name, extension }
+                                })
+
+                            if (promptFiles.length === 0) {
+                                return interaction.editReply({ content: 'No prompt templates found.' })
+                            }
+
+                            const embed = new client.Gateway.EmbedBuilder()
+                                .setTitle('🧠 AI Prompt Templates')
+                                .setColor(client.colors.primary)
+                                .setDescription('Available prompt templates that Echo can use:')
+                                .addFields([
+                                    {
+                                        name: 'Templates',
+                                        value: promptFiles.map(p => `• \`${p.name}\` (${p.extension})`).join('\n')
+                                    }
+                                ])
+                                .setFooter({ text: `${promptFiles.length} templates available` })
+
+                            return interaction.editReply({ embeds: [embed] })
+                        }
+
+                        case 'reload': {
+                            // Reload all prompts
+                            await promptService.initialize({ force: true })
+                            return interaction.editReply({
+                                content: '✅ Successfully reloaded all prompt templates.'
+                            })
+                        }
+
+                        case 'view': {
+                            if (!promptName) {
+                                return interaction.editReply({
+                                    content: '❌ Please specify a prompt name to view.'
+                                })
+                            }
+
+                            // View specific prompt
+                            const promptContent = await promptService.loadPromptTemplate(promptName)
+
+                            if (!promptContent) {
+                                return interaction.editReply({
+                                    content: `❌ Prompt template '${promptName}' not found.`
+                                })
+                            }
+
+                            // Format the prompt content for display
+                            const formattedContent =
+                                promptContent.length > 1900
+                                    ? promptContent.substring(0, 1900) + '... (truncated)'
+                                    : promptContent
+
+                            return interaction.editReply({
+                                content: `# Prompt: ${promptName}\n\`\`\`md\n${formattedContent}\n\`\`\``
+                            })
+                        }
+
+                        default:
+                            return interaction.editReply({
+                                content: '❌ Invalid action specified.'
+                            })
+                    }
                 }
             }
             return null // Default return value for switch statement

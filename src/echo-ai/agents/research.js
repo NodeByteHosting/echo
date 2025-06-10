@@ -1,8 +1,6 @@
 import { BaseAgent } from './baseAgent.js'
-import axios from 'axios'
-import { log } from '../../functions/logger.js'
 import { db } from '../../database/client.js'
-import { makeSerializable } from '../../utils/serialization.js'
+import { promptService } from '../services/prompt.service.js'
 
 export class ResearchAgent extends BaseAgent {
     constructor(aiModel) {
@@ -13,70 +11,32 @@ export class ResearchAgent extends BaseAgent {
         this.database = db.getInstance()
 
         if (!this.apiKey) {
-            log('TAVILY_API_KEY is not configured', 'error')
-            throw new Error('TAVILY_API_KEY is not configured')
+            // ...existing code...
         }
 
         // Cache for recent research results
         this.researchCache = new Map()
         this.cacheConfig = {
             maxSize: 100,
-            ttl: 60 * 60 * 1000 // 1 hour
+            ttl: 60 * 60 * 1000
         }
     }
 
     async canHandle(message) {
-        // Check if this is explicitly a research request
-        const researchIndicators = [
-            'research',
-            'search for',
-            'look up',
-            'find information',
-            'latest news',
-            'recent events',
-            'current status'
-        ]
-
-        const msg = message.toLowerCase()
-
-        // Direct research request indicators
-        for (const indicator of researchIndicators) {
-            if (msg.includes(indicator)) {
-                return true
-            }
-        }
-
-        // For more complex research queries, use AI to determine
-        if (message.length > 15 && message.includes('?')) {
-            const response = await this.aiModel.getResponse(
-                'Determine if this query requires external research:\n' +
-                    'Message: "' +
-                    message +
-                    '"\n\n' +
-                    'Consider:\n' +
-                    '1. Does it ask about facts, statistics, or information not in training data?\n' +
-                    '2. Does it reference recent events or current status?\n' +
-                    '3. Does it explicitly ask for research?\n' +
-                    '4. Would web search or external sources help answer this?\n\n' +
-                    'Return ONLY: "research" or "no-research"'
-            )
-
-            return response.toLowerCase().includes('research')
-        }
-
-        return false
+        // ...existing code...
     }
 
     async process(query, userId, contextData = {}) {
         try {
-            // Check if we have cached results for similar queries
+            // Generate a cache key for this query
             const cacheKey = this._generateCacheKey(query)
+
+            // Check if we have a cached result
             const cachedResults = this._getCachedResults(cacheKey)
-
             if (cachedResults) {
-                log('Using cached research results', 'info')
+                console.log(`Using cached research results for: ${query}`)
 
-                // If this is a direct research request, enhance presentation
+                // For direct research requests, enhance the presentation
                 if (contextData.isDirectResearch) {
                     return this._formatDirectResearchResponse(query, cachedResults)
                 }
@@ -84,109 +44,92 @@ export class ResearchAgent extends BaseAgent {
                 return cachedResults
             }
 
-            // Extract search parameters
-            const { searchDepth, includeImages } = this._parseSearchParameters(query, contextData)
+            console.log(`Performing research for: "${query}"`)
 
-            // Optimize query for search if needed
+            // Optimize search query for better results
             const optimizedQuery = await this._optimizeSearchQuery(query)
 
-            // Perform the search
-            const searchResults = await this._search(optimizedQuery, contextData.limit || 3, searchDepth, includeImages)
+            // Parse search parameters from query and context
+            const { searchDepth, includeImages } = this._parseSearchParameters(query, contextData)
 
-            if (searchResults.length === 0) {
+            // Execute the search
+            const searchResults = await this._search(optimizedQuery, 7)
+
+            if (!searchResults || !searchResults.results || searchResults.results.length === 0) {
                 return {
-                    content:
-                        "I couldn't find any relevant information for your query. This might be due to:\n" +
-                        '1. Very specific or technical topic\n' +
-                        '2. Recent events not yet indexed\n' +
-                        '3. Network or service availability issues\n\n' +
-                        'Could you try rephrasing your question or providing more context?',
-                    error: 'NO_RESULTS',
-                    retry: true,
-                    searchQuery: query
+                    content: `I couldn't find any relevant information for: "${query}"\n\nPlease try a different search query or rephrase your question.`,
+                    error: false,
+                    sourceResults: []
                 }
             }
 
-            try {
-                // Log the research for analytics
-                this._logResearch(userId, query, searchResults.length).catch(err => {
-                    console.error('Failed to log research:', err)
-                })
+            // Format source results for citation
+            const formattedSources = this._formatSourceResults(searchResults.results)
 
-                // Create a safe copy of search results for AI processing
-                const safeSearchResults = makeSerializable(searchResults)
-
-                // Use AI to analyze and synthesize the results
-                const analysis = await this.aiModel.getResponse({
-                    message: optimizedQuery,
-                    context: {
-                        searchResults: safeSearchResults,
-                        template: 'research_synthesis',
-                        directResearch: contextData.isDirectResearch
-                    }
-                })
-
-                const result = {
-                    content: analysis,
-                    sourceResults: makeSerializable(searchResults),
-                    searchMetadata: {
-                        resultCount: searchResults.length,
-                        averageConfidence: this._calculateAverageConfidence(searchResults),
-                        timestamp: new Date().toISOString(),
-                        query: optimizedQuery
-                    },
-                    searchQuery: optimizedQuery
-                }
-
-                // Cache the results - make sure we store a safe copy
-                this._cacheResults(cacheKey, makeSerializable(result))
-
-                // If this is a direct research request, enhance presentation
-                if (contextData.isDirectResearch) {
-                    return this._formatDirectResearchResponse(query, result)
-                }
-
-                return result
-            } catch (aiError) {
-                // If AI synthesis fails, return raw results with a fallback summary
-                log('AI synthesis error', 'warn', { error: aiError.message })
-                const fallbackResponse = {
-                    content: this._generateFallbackSummary(searchResults),
-                    sourceResults: makeSerializable(searchResults),
-                    error: 'AI_SYNTHESIS_FAILED',
-                    fallback: true,
-                    searchQuery: optimizedQuery
-                }
-
-                // Still cache fallback results - make sure we store a safe copy
-                this._cacheResults(cacheKey, makeSerializable(fallbackResponse))
-
-                return fallbackResponse
-            }
-        } catch (error) {
-            log('Research error', 'error', {
-                error: error.message,
-                query,
-                stack: error.stack
+            // Create context for research response
+            const researchContext = await promptService.createContext(query, {
+                messageType: 'research',
+                searchResults: searchResults.results.map(r => ({
+                    title: r.title,
+                    snippet: r.content.substring(0, 200) + (r.content.length > 200 ? '...' : '')
+                })),
+                sourceResults: formattedSources,
+                searchMetadata: {
+                    totalResults: searchResults.results.length,
+                    searchTime: searchResults.searchTime,
+                    confidence: this._calculateAverageConfidence(searchResults.results)
+                },
+                ...contextData
             })
 
-            // Return user-friendly error messages
-            const errorMessages = {
-                'Invalid API key': 'There is a configuration issue with the research service. Please contact support.',
-                'Rate limit exceeded': 'The research service is temporarily busy. Please try again in a few minutes.',
-                'Search request timed out': 'The research request took too long to complete. Please try again.',
-                'Network connectivity issue':
-                    'There are connection issues with the research service. Please try again later.',
-                'Max retry attempts reached':
-                    'The research service is experiencing difficulties. Please try again later.',
-                'ECONNABORTED': 'The connection to the research service timed out. Please try again.'
+            // Get the research prompt template
+            const researchPrompt = await promptService.getPromptForContext(researchContext)
+
+            // Generate a comprehensive answer based on the search results
+            const analysisPrompt = `${query}\n\nSearch Results:\n${searchResults.results
+                .map((r, i) => {
+                    return `SOURCE ${i + 1}: ${r.title}\n${r.content}\nURL: ${r.url}\n\n`
+                })
+                .join('')}`
+
+            // Get AI response with the research prompt
+            const response = await this.aiModel.getResponse(analysisPrompt, {
+                systemPrompt: researchPrompt,
+                context: researchContext
+            })
+
+            // Prepare final result with sources
+            const result = {
+                content: response,
+                sourceResults: formattedSources,
+                searchMetadata: {
+                    totalResults: searchResults.results.length,
+                    searchTime: searchResults.searchTime,
+                    confidence: this._calculateAverageConfidence(searchResults.results)
+                }
             }
 
+            // Cache the research results
+            this._cacheResults(cacheKey, result)
+
+            // Log this research for analytics
+            this._logResearch(userId, query, searchResults.results.length).catch(err => {
+                console.error('Failed to log research:', err)
+            })
+
+            // For direct research requests, enhance the presentation
+            if (contextData.isDirectResearch) {
+                return this._formatDirectResearchResponse(query, result)
+            }
+
+            return result
+        } catch (error) {
+            console.error('Research agent error:', error)
+
             return {
-                content: errorMessages[error.message] || 'An unexpected error occurred while researching your query.',
-                error: error.message,
-                retry: !['Invalid API key'].includes(error.message),
-                searchQuery: query
+                content: `I encountered an error while researching: "${query}"\n\nError: ${error.message}`,
+                error: true,
+                sourceResults: []
             }
         }
     }
