@@ -8,5 +8,3 @@
 - [ ] Add tests for prompt rendering with various context objects
 - [ ] Remove any unused or legacy prompt files from old locations
 - [ ] Ensure promptService is the single source of truth for all prompt selection
-- [ ] Audit all prompt file naming for consistency and clarity
-- [ ] Ensure all prompt variables are documented and used consistently

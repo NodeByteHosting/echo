@@ -7,6 +7,3 @@
 - [ ] Ensure all code examples in docs use the new utility imports
 - [ ] Add migration notes for contributors regarding the new structure
 - [ ] Review and update all inline code comments for accuracy
-- [ ] Document the memoize and performance utilities in the utils docs
-- [ ] Document the error handler usage and patterns
-- [ ] Add a troubleshooting section for common utility/prompt issues
