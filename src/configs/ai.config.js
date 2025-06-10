@@ -16,7 +16,7 @@ export const aiConfig = {
     // Performance optimization settings
     optimization: {
         cacheEnabled: true,
-        cacheTTL: 3600, // 1 hour in seconds
+        cacheTTL: 3600,
         prioritizeSpeed: true,
         smartTokenBudgeting: true,
         concurrentRequests: 3
@@ -24,7 +24,7 @@ export const aiConfig = {
 
     // Prompt file paths
     promptPaths: {
-        basePath: 'd://@nodebyte/echo/prompts',
+        basePath: process.env.PROMPT_PATH || 'd://@nodebyte/echo/src/echo-ai/prompts',
         corePrompt: 'core',
         conversationPrompt: 'conversation',
         technicalPrompt: 'technical',

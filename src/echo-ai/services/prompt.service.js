@@ -16,6 +16,32 @@ const promptCache = new CacheManager({
 // Define supported prompt file extensions
 const PROMPT_EXTENSIONS = ['.echo', '.txt', '.md']
 
+/**
+ * Try to fetch a file via HTTP(S) or file URL, fallback to fs if not available.
+ * @param {string} filePath - The path or URL to the file
+ * @returns {Promise<string|null>} The file contents or null if not found
+ */
+async function fetchPromptFile(filePath) {
+    try {
+        // Try fetch if filePath is a URL
+        if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('file://')) {
+            const res = await fetch(filePath)
+            if (res.ok) {
+                return await res.text()
+            }
+        }
+    } catch (err) {
+        // Ignore and fallback
+    }
+    try {
+        // Fallback to fs for local files
+        return await fs.readFile(filePath, 'utf8')
+    } catch (err) {
+        log(`Prompt file not found: ${filePath}`, 'warn')
+        return null
+    }
+}
+
 class PromptService {
     constructor() {
         this.prompts = new Map()
@@ -60,33 +86,16 @@ class PromptService {
      * @returns {Promise<string|null>} The prompt template or null if not found
      */
     async loadPrompt(promptName) {
-        try {
-            // Try each supported extension
-            for (const extension of PROMPT_EXTENSIONS) {
-                try {
-                    const filePath = path.join(this.basePath, `${promptName}${extension}`)
-                    const exists = await fs
-                        .access(filePath)
-                        .then(() => true)
-                        .catch(() => false)
-
-                    if (exists) {
-                        const template = await fs.readFile(filePath, 'utf8')
-                        this.prompts.set(promptName, template)
-                        return template
-                    }
-                } catch (error) {
-                    // Continue to the next extension
-                    continue
-                }
+        for (const extension of PROMPT_EXTENSIONS) {
+            const filePath = path.join(this.basePath, `${promptName}${extension}`)
+            const template = await fetchPromptFile(filePath)
+            if (template) {
+                this.prompts.set(promptName, template)
+                return template
             }
-
-            log(`Prompt ${promptName} not found with any supported extension`, 'warn')
-            return null
-        } catch (error) {
-            log(`Error loading prompt ${promptName}: ${error.message}`, 'error')
-            return null
         }
+        log(`Prompt ${promptName} not found with any supported extension`, 'warn')
+        return null
     }
 
     /**

@@ -171,12 +171,10 @@ export default {
 
                     switch (action) {
                         case 'list': {
-                            // List all available prompts
-                            const promptsDir = 'd://@nodebyte/echo/prompts'
-                            const files = await fs.readdir(promptsDir)
-
+                            // Only show allowed prompt types
+                            const allowedPrompts = ['core', 'conversation', 'technical', 'synthesis']
                             const promptFiles = files
-                                .filter(file => file.endsWith('.echo') || file.endsWith('.md') || file.endsWith('.txt'))
+                                .filter(file => allowedPrompts.some(p => file.startsWith(p + '.')))
                                 .map(file => {
                                     const extension = path.extname(file)
                                     const name = file.slice(0, -extension.length)

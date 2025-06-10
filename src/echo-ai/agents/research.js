@@ -83,7 +83,10 @@ export class ResearchAgent extends BaseAgent {
             })
 
             // Get the research prompt template
-            const researchPrompt = await promptService.getPromptForContext(researchContext)
+            const researchPrompt = await promptService.getPromptForContext({
+                ...researchContext,
+                messageType: 'synthesis' // Always use allowed prompt type
+            })
 
             // Generate a comprehensive answer based on the search results
             const analysisPrompt = `${query}\n\nSearch Results:\n${searchResults.results

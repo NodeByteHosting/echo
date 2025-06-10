@@ -24,11 +24,10 @@ export class BaseAgent {
      */
     async determineContextNeeded(message, currentContext = {}) {
         const serializableContext = makeSerializable(currentContext)
-
-        // Create context for prompt selection
+        // Always use allowed prompt types
         const promptContext = await promptService.createContext(message, {
             ...currentContext,
-            messageType: 'context_determination'
+            messageType: 'core' // Use 'core' for context determination
         })
 
         const prompt = `As an AI agent, analyze this user message and current context to determine what additional information might be needed to provide the best response. Return only the essential questions, if any.
@@ -57,12 +56,12 @@ Return format: Array of questions or empty array if no context needed.`
      */
     async generateResponse(message, context) {
         const serializableContext = makeSerializable(context)
-
-        // Get agent-specific prompt from prompt service
+        // Always use allowed prompt types
         const agentName = this.constructor.name
         const promptContext = await promptService.createContext(message, {
             ...context,
-            agentType: agentName
+            agentType: agentName,
+            messageType: 'core' // Use 'core' or agent-specific if needed
         })
 
         const systemPrompt = await promptService.getAgentPrompt(agentName, promptContext)
