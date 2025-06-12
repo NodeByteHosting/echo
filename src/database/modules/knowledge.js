@@ -3,10 +3,8 @@ export class KnowledgeModule {
         this.prisma = prisma
     }
 
-    async findById(id) {
-        return this.prisma.knowledgeBase.findUnique({
-            where: { id }
-        })
+    async findById(id, include = {}) {
+        return this.prisma.knowledgeBase.findUnique({ where: { id }, include })
     }
 
     async search(query, options = {}) {
@@ -36,10 +34,11 @@ export class KnowledgeModule {
     }
 
     async update(id, data) {
-        return this.prisma.knowledgeBase.update({
-            where: { id },
-            data
-        })
+        return this.prisma.knowledgeBase.update({ where: { id }, data })
+    }
+
+    async delete(id) {
+        return this.prisma.knowledgeBase.delete({ where: { id } })
     }
 
     async verify(id, moderatorId) {
@@ -97,6 +96,22 @@ export class KnowledgeModule {
                 isVerified: true
             },
             orderBy: { useCount: 'desc' },
+            take: limit
+        })
+    }
+
+    // --- Relations ---
+    async getUser(id) {
+        return this.prisma.knowledgeBase.findUnique({
+            where: { id },
+            include: { user: true }
+        })
+    }
+
+    async getByUser(userId, limit = 10) {
+        return this.prisma.knowledgeBase.findMany({
+            where: { createdBy: BigInt(userId) },
+            orderBy: { createdAt: 'desc' },
             take: limit
         })
     }

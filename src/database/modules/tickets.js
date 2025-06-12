@@ -369,4 +369,109 @@ export class TicketModule {
             }
         })
     }
+
+    /**
+     * Get ticket by ID
+     * @param {number} ticketId
+     * @returns {Promise<Object|null>} Ticket with relations
+     */
+    async getById(ticketId) {
+        return this.prisma.ticket.findUnique({
+            where: { id: ticketId },
+            include: {
+                user: true,
+                assignedAgent: true,
+                messages: true,
+                feedback: true
+            }
+        })
+    }
+
+    /**
+     * Update ticket fields
+     * @param {number} ticketId
+     * @param {Object} data
+     * @returns {Promise<Object>} Updated ticket
+     */
+    async update(ticketId, data) {
+        return this.prisma.ticket.update({
+            where: { id: ticketId },
+            data,
+            include: {
+                user: true,
+                assignedAgent: true,
+                messages: true,
+                feedback: true
+            }
+        })
+    }
+
+    /**
+     * Delete a ticket
+     * @param {number} ticketId
+     * @returns {Promise<Object>} Deleted ticket
+     */
+    async delete(ticketId) {
+        return this.prisma.ticket.delete({
+            where: { id: ticketId }
+        })
+    }
+
+    /**
+     * Batch close tickets by IDs
+     * @param {Array<number>} ticketIds
+     * @returns {Promise<Object>} Result
+     */
+    async batchClose(ticketIds) {
+        return this.prisma.ticket.updateMany({
+            where: { id: { in: ticketIds } },
+            data: { status: 'CLOSED', closedAt: new Date() }
+        })
+    }
+
+    /**
+     * Batch delete tickets by IDs
+     * @param {Array<number>} ticketIds
+     * @returns {Promise<Object>} Result
+     */
+    async batchDelete(ticketIds) {
+        return this.prisma.ticket.deleteMany({
+            where: { id: { in: ticketIds } }
+        })
+    }
+
+    /**
+     * Get tickets by date range
+     * @param {Date} start
+     * @param {Date} end
+     * @param {number} limit
+     * @returns {Promise<Array>} Tickets
+     */
+    async getByDateRange(start, end, limit = 20) {
+        return this.prisma.ticket.findMany({
+            where: {
+                createdAt: {
+                    gte: new Date(start),
+                    lte: new Date(end)
+                }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: limit,
+            include: {
+                user: true,
+                assignedAgent: true
+            }
+        })
+    }
+
+    /**
+     * Get ticket statistics
+     * @returns {Promise<Object>} Stats
+     */
+    async getStats() {
+        const total = await this.prisma.ticket.count()
+        const open = await this.prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } })
+        const closed = await this.prisma.ticket.count({ where: { status: 'CLOSED' } })
+        return { total, open, closed }
+    }
 }

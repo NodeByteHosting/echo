@@ -41,6 +41,15 @@
 -   [ ] Add admin commands to view and update EchoConfig settings
 -   [ ] Document the EchoConfig model and its usage
 
+## Module & CRUD Coverage (2025-06-12)
+
+-   [ ] Add modules for all missing Prisma models (Echo, EchoSettings, EchoBranding, EchoFeatures, EchoPrompts, EchoPerformance, Item, Inventory, Level, Badge, Achievement, Statistics, Transaction, TicketFeedback, etc.)
+-   [ ] Add missing CRUD and relation methods to existing modules (users, tickets, agents, knowledge, moderation, audit, guild, conversations)
+-   [ ] Ensure all fields (including new/optional ones) are handled in create/update methods for all modules
+-   [ ] Expose advanced queries and batch operations where relevant
+-   [ ] Add validation for enums and relations in all modules
+-   [ ] Add tests for new and updated modules
+
 ## General
 
 -   [ ] Add tests for all new models and seed logic

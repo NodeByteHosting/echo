@@ -244,4 +244,137 @@ export class UserModule {
             }
         }
     }
+
+    /**
+     * Create a new user
+     * @param {Object} data - User data
+     * @returns {Promise<Object>} Created user
+     */
+    async create(data) {
+        return this.prisma.user.create({
+            data,
+            include: {
+                profile: true,
+                economy: true,
+                level: true,
+                statistics: true,
+                achievements: true,
+                tickets: true,
+                conversations: true,
+                knowledgeEntries: true,
+                moderationReceived: true,
+                moderationPerformed: true
+            }
+        })
+    }
+
+    /**
+     * Update user fields
+     * @param {BigInt|number|string} id
+     * @param {Object} data
+     * @returns {Promise<Object>} Updated user
+     */
+    async updateUser(id, data) {
+        return this.prisma.user.update({
+            where: { id: BigInt(id) },
+            data,
+            include: {
+                profile: true,
+                economy: true,
+                level: true,
+                statistics: true,
+                achievements: true,
+                tickets: true,
+                conversations: true,
+                knowledgeEntries: true,
+                moderationReceived: true,
+                moderationPerformed: true
+            }
+        })
+    }
+
+    /**
+     * Delete a user
+     * @param {BigInt|number|string} id
+     * @returns {Promise<Object>} Deleted user
+     */
+    async deleteUser(id) {
+        return this.prisma.user.delete({
+            where: { id: BigInt(id) }
+        })
+    }
+
+    /**
+     * Get all users (with optional filters and relations)
+     * @param {Object} options - Query options
+     * @returns {Promise<Array>} Users
+     */
+    async getAll(options = {}) {
+        const { where = {}, include = {}, orderBy = { createdAt: 'desc' }, take = 100, skip = 0 } = options
+        return this.prisma.user.findMany({ where, include, orderBy, take, skip })
+    }
+
+    /**
+     * Find user by email
+     * @param {string} email
+     * @param {Object} include
+     * @returns {Promise<Object|null>} User or null
+     */
+    async findByEmail(email, include = {}) {
+        return this.prisma.user.findUnique({ where: { email }, include })
+    }
+
+    /**
+     * Find all banned users
+     * @returns {Promise<Array>} Banned users
+     */
+    async getBannedUsers() {
+        return this.prisma.user.findMany({ where: { isBanned: true } })
+    }
+
+    /**
+     * Find users by achievement
+     * @param {number} achievementId
+     * @returns {Promise<Array>} Users with the achievement
+     */
+    async findByAchievement(achievementId) {
+        return this.prisma.user.findMany({
+            where: {
+                achievements: {
+                    some: { id: achievementId }
+                }
+            },
+            include: { achievements: true }
+        })
+    }
+
+    /**
+     * Get users created within a date range
+     * @param {Date} start
+     * @param {Date} end
+     * @returns {Promise<Array>} Users
+     */
+    async getByCreationDate(start, end) {
+        return this.prisma.user.findMany({
+            where: {
+                createdAt: {
+                    gte: new Date(start),
+                    lte: new Date(end)
+                }
+            }
+        })
+    }
+
+    /**
+     * Get user statistics (total, banned, active today)
+     * @returns {Promise<Object>} Stats
+     */
+    async getStats() {
+        const total = await this.prisma.user.count()
+        const banned = await this.prisma.user.count({ where: { isBanned: true } })
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const activeToday = await this.prisma.user.count({ where: { updatedAt: { gte: today } } })
+        return { total, banned, activeToday }
+    }
 }

@@ -7,11 +7,6 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-/**
- * ========================================================
- * ----------------- DATABASE MODELS ----------------------
- * ========================================================
- */
 model Echo {
     id            String          @id @default("echobot")
     modelSettings EchoModels      @relation(fields: [id], references: [id], map: "Echo_modelSettings_fkey")
@@ -409,11 +404,6 @@ model KnowledgeBase {
     @@index([createdBy])
 }
 
-/**
- * ========================================================
- * ----------------- DATABASE ENUMS -----------------------
- * ========================================================
- */
 enum UserRole {
     USER
     SUPPORT_AGENT

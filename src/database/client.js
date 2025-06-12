@@ -10,6 +10,15 @@ import { ModerationModule } from './modules/moderation.js'
 import { AuditModule } from './modules/audit.js'
 import { GuildModule } from './modules/guild.js'
 import EchoBot from '../class/client.js'
+import { AchievementModule } from './modules/achievement.js'
+import { BadgeModule } from './modules/badge.js'
+import { InventoryModule } from './modules/inventory.js'
+import { ItemModule } from './modules/item.js'
+import { LevelModule } from './modules/level.js'
+import { StatisticsModule } from './modules/statistics.js'
+import { TransactionModule } from './modules/transaction.js'
+import { TicketFeedbackModule } from './modules/ticketFeedback.js'
+import { EchoModule } from './modules/echo.js'
 
 const prisma = new PrismaClient().$extends(withAccelerate())
 
@@ -37,6 +46,15 @@ export class db {
         this.moderation = new ModerationModule(this.prisma)
         this.audit = new AuditModule(this.prisma)
         this.guild = new GuildModule(this.prisma)
+        this.achievement = new AchievementModule(this.prisma)
+        this.badge = new BadgeModule(this.prisma)
+        this.inventory = new InventoryModule(this.prisma)
+        this.item = new ItemModule(this.prisma)
+        this.level = new LevelModule(this.prisma)
+        this.statistics = new StatisticsModule(this.prisma)
+        this.transaction = new TransactionModule(this.prisma)
+        this.ticketFeedback = new TicketFeedbackModule(this.prisma)
+        this.echo = new EchoModule(this.prisma)
 
         this.logs = {
             info: msg => log(msg, 'info'),
