@@ -106,8 +106,8 @@ model AuditLog {
 }
 
 model Guild {
-    id         String         @id
-    name       String
+    id         String         @id @unique
+    name       String         @unique
     beta       Boolean?       @default(false)
     premium    Boolean?       @default(false)
     banned     Boolean?       @default(false)
@@ -128,20 +128,18 @@ model GuildFeatures {
 }
 
 model GuildGates {
-    id         String   @id
-    enabled    Boolean? @default(false)
-    channel    String?
-    logChannel String?
-
+    id            String        @id
+    enabled       Boolean?      @default(false)
+    channel       String?
+    logChannel    String?
     guildFeatures GuildFeatures @relation(fields: [id], references: [id])
 }
 
 model GuildTickets {
-    id         String   @id
-    enabled    Boolean? @default(false)
-    categoryId String?
-    auditId    String?
-
+    id            String        @id
+    enabled       Boolean?      @default(false)
+    categoryId    String?
+    auditId       String?
     guildFeatures GuildFeatures @relation(fields: [id], references: [id])
 }
 
@@ -216,9 +214,9 @@ model Ticket {
     supportAgentId BigInt?
     SupportAgent   SupportAgent?   @relation("SupportAgentToTicket", fields: [supportAgentId], references: [id])
     isEscalated    Boolean         @default(false)
-    threadId       String? // Discord thread ID
-    category       String? // Ticket category 
-    resolution     String? // Resolution notes
+    threadId       String?         @unique
+    category       String?
+    resolution     String?
     feedback       TicketFeedback?
 }
 
@@ -226,7 +224,7 @@ model TicketFeedback {
     id        Int      @id @default(autoincrement())
     ticketId  Int      @unique
     ticket    Ticket   @relation(fields: [ticketId], references: [id])
-    rating    Int // 1-5 rating
+    rating    Int
     comment   String?  @db.Text
     createdAt DateTime @default(now())
 }
@@ -240,6 +238,9 @@ model Message {
     sender     User     @relation("UserMessages", fields: [senderId], references: [id])
     createdAt  DateTime @default(now())
     isInternal Boolean  @default(false)
+
+    @@index([ticketId])
+    @@index([senderId])
 }
 
 model SupportAgent {
@@ -263,6 +264,10 @@ model ModerationLog {
     expiresAt   DateTime?
     performedBy BigInt?
     moderator   User?     @relation("ModeratorUser", fields: [performedBy], references: [id])
+
+    @@index([userId])
+    @@index([action])
+    @@index([createdAt])
 }
 
 model Profile {
@@ -305,6 +310,9 @@ model Transaction {
     amount      Int
     description String?
     createdAt   DateTime        @default(now())
+
+    @@index([economyId])
+    @@index([type])
 }
 
 model Item {
@@ -316,6 +324,8 @@ model Item {
     isLimited   Boolean     @default(false)
     quantity    Int?
     inventory   Inventory[]
+
+    @@index([type])
 }
 
 model Inventory {
@@ -326,6 +336,9 @@ model Inventory {
     item      Item    @relation(fields: [itemId], references: [id])
     quantity  Int     @default(1)
     equipped  Boolean @default(false)
+
+    @@index([economyId])
+    @@index([itemId])
 }
 
 model Level {
@@ -337,6 +350,9 @@ model Level {
     totalXp      Int       @default(0)
     messageCount Int       @default(0)
     lastMessage  DateTime?
+
+    @@index([userId])
+    @@index([level])
 }
 
 model Badge {
@@ -347,6 +363,8 @@ model Badge {
     profiles    Profile[]
     selectedBy  Profile[] @relation("SelectedBadge")
     rarity      Int       @default(1)
+
+    @@index([rarity])
 }
 
 model Achievement {
@@ -358,6 +376,8 @@ model Achievement {
     reward      Int
     icon        String
     users       User[]
+
+    @@index([type])
 }
 
 model Statistics {
