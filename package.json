@@ -1,12 +1,30 @@
 {
     "name": "@nodebyte/echo",
-    "description": "NodeByte’s clever fox. Always curious, always connected, and always ready to lend a paw.",
+    "description": "NodeByte's clever fox. Always curious, always connected, and always ready to lend a paw.",
     "version": "0.1.0",
     "type": "module",
     "main": "src/index.js",
+    "imports": {
+        "#classes": "./src/class/",
+        "#classes/*": "./src/class/*",
+        "#ai": "./src/echo-ai/",
+        "#ai/*": "./src/echo-ai/*",
+        "#configs": "./src/configs/",
+        "#configs/*": "./src/configs/*",
+        "#database": "./src/database/",
+        "#database/*": "./src/database/*",
+        "#functions": "./src/functions/",
+        "#functions/*": "./src/functions/*",
+        "#handlers": "./src/handlers/",
+        "#handlers/*": "./src/handlers/*",
+        "#utils": "./src/utils/",
+        "#utils/*": "./src/utils/*"
+    },
     "scripts": {
         "dev": "bun run --watch src/index.js",
         "start": "node src/index.js",
+        "start:prod": "node src/index.js",
+        "build": "prisma generate",
         "prisma:generate": "prisma generate",
         "prisma:studio": "prisma studio",
         "prisma:push": "prisma db push",
@@ -48,5 +66,7 @@
         "./src/**/*.{json,md,yml}": [
             "prettier --write ."
         ]
+    }
+}
     }
 }
