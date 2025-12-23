@@ -29,14 +29,15 @@ COPY presence.js ./
 COPY prompt.service.js ./
 COPY commitlint.config.cjs ./
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Set environment to production
 ENV NODE_ENV=production
 
-# Verify files exist (debugging step)
-RUN ls -la /app/src/ && echo "✓ Source files copied"
-
 # Run the bot with Bun
-CMD ["sh", "-c", "echo '🚀 Container starting...' && ls -la /app && bun run src/index.js"]
+ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s CMD pgrep -f bun || exit 1
