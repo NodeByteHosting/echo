@@ -145,11 +145,33 @@ class PromptService {
      * @returns {Promise<string>} The processed prompt
      */
     async getPromptForContext(context) {
-        // Only allow new prompt names
+        // Map all possible message types to allowed prompts
+        const messageTypeMapping = {
+            // Core types
+            'core': 'core',
+            'conversation': 'conversation',
+            'technical': 'technical',
+            'synthesis': 'synthesis',
+            // Agent types mapped to appropriate prompts
+            'knowledge': 'technical',
+            'support': 'technical',
+            'code': 'technical',
+            'research': 'synthesis',
+            'ticket': 'technical',
+            'conversation_analysis': 'conversation',
+            'persona': 'conversation',
+            'entity_mentions': 'conversation',
+            // Default fallback
+            'default': 'conversation'
+        }
+
+        const promptName = messageTypeMapping[context.messageType] || messageTypeMapping['default']
+
+        // Validate that we have a valid prompt name
         const allowedPrompts = ['core', 'conversation', 'technical', 'synthesis']
-        const promptName = context.messageType
         if (!allowedPrompts.includes(promptName)) {
-            throw new Error('Invalid or deprecated prompt requested: ' + promptName)
+            console.warn(`Invalid prompt mapping for messageType: ${context.messageType}, using default`)
+            return this.getPrompt('conversation')
         }
 
         // Generate a cache key based on relevant context data
