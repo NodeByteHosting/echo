@@ -24,7 +24,7 @@ export const aiConfig = {
 
     // Prompt file paths
     promptPaths: {
-        basePath: process.env.PROMPT_PATH || 'd://@nodebyte/echo/src/echo-ai/prompts',
+        basePath: process.env.PROMPT_PATH || './src/echo-ai/prompts',
         corePrompt: 'core',
         conversationPrompt: 'conversation',
         technicalPrompt: 'technical',

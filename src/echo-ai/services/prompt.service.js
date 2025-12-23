@@ -46,7 +46,7 @@ class PromptService {
     constructor() {
         this.prompts = new Map()
         this.initialized = false
-        this.basePath = process.env.PROMPT_PATH || 'd://@nodebyte/echo/src/echo-ai/prompts'
+        this.basePath = process.env.PROMPT_PATH || path.join(process.cwd(), 'src/echo-ai/prompts')
     }
 
     /**

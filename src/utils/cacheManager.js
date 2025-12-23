@@ -242,3 +242,21 @@ export const globalCache = new CacheManager({
     maxSize: 1000,
     ttl: 7200000 // 2 hours
 })
+
+// Response cache for API responses
+export const responseCache = new CacheManager({
+    maxSize: 500,
+    ttl: 1800000 // 30 minutes
+})
+
+// Knowledge cache for knowledge base queries
+export const knowledgeCache = new CacheManager({
+    maxSize: 300,
+    ttl: 3600000 // 1 hour
+})
+
+// Research cache for research agent results
+export const researchCache = new CacheManager({
+    maxSize: 200,
+    ttl: 2700000 // 45 minutes
+})
