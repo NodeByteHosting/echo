@@ -29,9 +29,6 @@ COPY presence.js ./
 COPY prompt.service.js ./
 COPY commitlint.config.cjs ./
 
-# Remove devDependencies to reduce image size
-RUN bun install --frozen-lockfile --production --ignore-scripts
-
 # Set environment to production
 ENV NODE_ENV=production
 
