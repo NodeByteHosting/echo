@@ -32,8 +32,11 @@ COPY commitlint.config.cjs ./
 # Set environment to production
 ENV NODE_ENV=production
 
+# Verify files exist (debugging step)
+RUN ls -la /app/src/ && echo "✓ Source files copied"
+
 # Run the bot with Bun
-CMD ["bun", "run", "src/index.js"]
+CMD ["sh", "-c", "echo '🚀 Container starting...' && ls -la /app && bun run src/index.js"]
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s CMD pgrep -f bun || exit 1
