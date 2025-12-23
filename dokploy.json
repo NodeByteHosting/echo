@@ -1,0 +1,26 @@
+{
+  "name": "echo-bot",
+  "description": "Echo - NodeByte's Discord Bot",
+  "type": "application",
+  "dockerfile": "./Dockerfile",
+  "buildArgs": {},
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "ports": [],
+  "healthCheck": {
+    "enabled": true,
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3,
+    "startPeriod": 60
+  },
+  "restart": "unless-stopped",
+  "requiredEnvVars": [
+    "TOKEN",
+    "CLIENT_ID",
+    "DATABASE_URL",
+    "OPENAI_API_KEY",
+    "TAVILY_API_KEY"
+  ]
+}

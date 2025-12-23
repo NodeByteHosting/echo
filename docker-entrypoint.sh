@@ -1,21 +1,58 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
-echo "================================"
-echo "🚀 Echo Bot Starting"
-echo "================================"
+echo "=================================================="
+echo "🦊 Echo Bot Container Starting"
+echo "=================================================="
+echo ""
+echo "📅 Date: $(date)"
 echo "📁 Working directory: $(pwd)"
-echo "📂 Files in /app:"
-ls -la /app
+echo "🐧 OS: $(uname -a)"
 echo ""
-echo "📂 Files in /app/src:"
-ls -la /app/src
+echo "📂 Root files:"
+ls -lah /app | head -20
 echo ""
-echo "🔍 Checking environment variables:"
-echo "   TOKEN: ${TOKEN:+SET}"
-echo "   CLIENT_ID: ${CLIENT_ID:+SET}"
-echo "   DATABASE_URL: ${DATABASE_URL:+SET}"
+echo "📂 Source directory:"
+ls -lah /app/src | head -20
 echo ""
-echo "🏃 Starting bot..."
-echo "================================"
+echo "🔍 Environment check:"
+echo "   NODE_ENV: ${NODE_ENV}"
+echo "   TOKEN: ${TOKEN:+✅ SET}${TOKEN:-❌ NOT SET}"
+echo "   CLIENT_ID: ${CLIENT_ID:+✅ SET}${CLIENT_ID:-❌ NOT SET}"
+echo "   DATABASE_URL: ${DATABASE_URL:+✅ SET}${DATABASE_URL:-❌ NOT SET}"
+echo "   OPENAI_API_KEY: ${OPENAI_API_KEY:+✅ SET}${OPENAI_API_KEY:-❌ NOT SET}"
+echo "   TAVILY_API_KEY: ${TAVILY_API_KEY:+✅ SET}${TAVILY_API_KEY:-❌ NOT SET}"
+echo ""
+
+# Check required environment variables
+MISSING_VARS=()
+[[ -z "$TOKEN" ]] && MISSING_VARS+=("TOKEN")
+[[ -z "$CLIENT_ID" ]] && MISSING_VARS+=("CLIENT_ID")
+[[ -z "$DATABASE_URL" ]] && MISSING_VARS+=("DATABASE_URL")
+[[ -z "$OPENAI_API_KEY" ]] && MISSING_VARS+=("OPENAI_API_KEY")
+[[ -z "$TAVILY_API_KEY" ]] && MISSING_VARS+=("TAVILY_API_KEY")
+
+if [ ${#MISSING_VARS[@]} -ne 0 ]; then
+    echo "❌ ERROR: Missing required environment variables: ${MISSING_VARS[*]}"
+    echo "Please set these variables in your docker-compose.yml or environment"
+    exit 1
+fi
+echo "✅ All required environment variables are set"
+echo ""
+echo "🔍 Bun version:"
+bun --version
+echo ""
+echo "🗄️  Running database migrations..."
+if bunx prisma migrate deploy 2>/dev/null; then
+    echo "✅ Migrations applied successfully"
+elif bunx prisma db push --skip-generate 2>/dev/null; then
+    echo "✅ Database schema synced (no migrations found)"
+else
+    echo "⚠️  Warning: Database migration failed, attempting to continue..."
+fi
+echo ""
+echo "🏃 Executing: bun run src/index.js"
+echo "=================================================="
+echo ""
+
 exec bun run src/index.js

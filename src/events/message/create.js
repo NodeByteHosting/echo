@@ -1,12 +1,12 @@
 import { Events } from 'discord.js'
 
-import { db } from '@database/client'
-import { MessageHandler } from '@handlers/message.handler'
+import { db } from '#database/client.js'
+import { MessageHandler } from '#handlers/message.handler.js'
 
-import { aiService } from '@ai/services/ai.service'
-import { ResponseService } from '@ai/services/response.service'
-import { TypingService } from '@ai/services/typing.service'
-import { promptService } from '@ai/services/prompt.service'
+import { aiService } from '#ai/services/ai.service.js'
+import { ResponseService } from '#ai/services/response.service.js'
+import { TypingService } from '#ai/services/typing.service.js'
+import { promptService } from '#ai/services/prompt.service.js'
 
 const COMMANDS = {
     help: ['help', 'h'],

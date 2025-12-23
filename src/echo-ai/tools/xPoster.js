@@ -1,5 +1,5 @@
 import { TwitterApi } from 'twitter-api-v2'
-import { log } from '@functions/logger'
+import { log } from '#functions/logger.js'
 
 /**
  * Service for posting updates to X (Twitter)

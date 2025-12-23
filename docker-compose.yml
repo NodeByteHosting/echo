@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  echo-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: echo-bot
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      TOKEN: ${TOKEN}
+      CLIENT_ID: ${CLIENT_ID}
+      DATABASE_URL: ${DATABASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
+      # Optional environment variables
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_OWNER: ${GITHUB_OWNER:-}
+      GITHUB_REPO: ${GITHUB_REPO:-}
+    volumes:
+      # Optional: Mount logs directory for persistence
+      - ./logs:/app/logs
+    networks:
+      - echo-network
+    # Uncomment if you want to use a PostgreSQL container
+    # depends_on:
+    #   - postgres
+
+  # Uncomment to run PostgreSQL in Docker
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: echo-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: ${DB_USER:-echobot}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
+  #     POSTGRES_DB: ${DB_NAME:-echobot}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - echo-network
+  #   ports:
+  #     - "5432:5432"
+
+networks:
+  echo-network:
+    driver: bridge
+
+# Uncomment if using PostgreSQL container
+# volumes:
+#   postgres_data:

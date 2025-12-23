@@ -1,6 +1,6 @@
 import { generateText } from 'ai'
-import { aiConfig } from '@configs/ai.config'
-import { promptService } from '@ai/services/prompt.service'
+import { aiConfig } from '#configs/ai.config.js'
+import { promptService } from '#ai/services/prompt.service.js'
 
 /**
  * AI Model wrapper that provides a consistent interface for agents
