@@ -5,13 +5,23 @@ export class GuildModule {
 
     // GuildConfig (main)
     async getConfig(guildId) {
-        return this.prisma.guildConfig.findUnique({
-            where: { id: guildId }
+        return this.prisma.guild.findUnique({
+            where: { id: guildId },
+            include: {
+                features: {
+                    include: {
+                        audits: { include: { channels: true } },
+                        tickets: true,
+                        gate: true
+                    }
+                },
+                GuildRoles: true
+            }
         })
     }
 
     async updateConfig(guildId, data) {
-        return this.prisma.guildConfig.upsert({
+        return this.prisma.guild.upsert({
             where: { id: guildId },
             update: {
                 ...data,
@@ -64,14 +74,14 @@ export class GuildModule {
     }
 
     async updateAuditEvents(guildId, events) {
-        return this.prisma.guildConfig.update({
+        return this.prisma.guild.update({
             where: { id: guildId },
             data: { auditEvents: events }
         })
     }
 
     async getAllGuilds() {
-        return this.prisma.guildConfig.findMany()
+        return this.prisma.guild.findMany()
     }
 
     // --- Related Models CRUD ---

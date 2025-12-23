@@ -1,4 +1,4 @@
-import { Events } from 'discord.js'
+import { Events, MessageFlags } from 'discord.js'
 import { log } from '../../functions/logger.js'
 import { db } from '../../database/client.js'
 
@@ -31,7 +31,7 @@ export default {
  */
 async function handleTicketModal(client, interaction, customId) {
     try {
-        await interaction.deferReply({ ephemeral: true })
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
         const database = db.getInstance()
 

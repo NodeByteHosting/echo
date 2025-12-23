@@ -1,4 +1,4 @@
-import { Events, EmbedBuilder } from 'discord.js'
+import { Events, EmbedBuilder, MessageFlags } from 'discord.js'
 import { log } from '../../functions/logger.js'
 import { db } from '../../database/client.js'
 import { PermissionHandler } from '../../functions/permissions.js'
@@ -32,7 +32,7 @@ export default {
  */
 async function handleTicketButton(client, interaction, customId) {
     try {
-        await interaction.deferReply({ ephemeral: true })
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
         const database = db.getInstance()
         const permHandler = new PermissionHandler(database.prisma)

@@ -1,4 +1,4 @@
-import { Events } from 'discord.js'
+import { Events, MessageFlags } from 'discord.js'
 import { log } from '../../functions/logger.js'
 import { getDefaultPermissions } from '../../functions/permissionUtils.js'
 
@@ -42,7 +42,7 @@ export default {
 
             if (!user) {
                 return interaction.reply({
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                     embeds: [
                         new client.Gateway.EmbedBuilder()
                             .setTitle('ERROR: User not registered')
@@ -59,7 +59,7 @@ export default {
                     : 'You are permanently banned'
 
                 return interaction.reply({
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                     embeds: [
                         new client.Gateway.EmbedBuilder()
                             .setTitle('Access Denied')
@@ -87,7 +87,7 @@ export default {
 
             if (missingPerms.length > 0) {
                 return interaction.reply({
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                     embeds: [
                         new client.Gateway.EmbedBuilder()
                             .setTitle('Permission Denied')
@@ -153,7 +153,7 @@ export default {
 
                     await interaction.reply({
                         content: message,
-                        ephemeral: true
+                        flags: MessageFlags.Ephemeral
                     })
 
                     return null
@@ -172,7 +172,7 @@ export default {
             log(err, 'debug')
 
             await interaction.reply({
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
                 content: 'An error occurred while executing this command!'
             })
         }
