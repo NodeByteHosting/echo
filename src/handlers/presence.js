@@ -3,7 +3,7 @@ import { ActivityType } from 'discord.js'
 export const setClientPresence = async client => {
     const presences = [{ name: 'in the forest', type: ActivityType.Playing }]
 
-    client.user.setStatus('idle')
+    client.user.setStatus('online')
 
     setInterval(() => {
         const presence = presences[Math.floor(Math.random() * presences.length)]
