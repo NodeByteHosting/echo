@@ -26,9 +26,6 @@ COPY src ./src
 COPY *.js ./
 COPY *.cjs ./
 
-# Copy .env file if it exists (optional, can be overridden by Docker secrets)
-COPY .env* ./ 2>/dev/null || true
-
 # Set environment to production
 ENV NODE_ENV=production
 
