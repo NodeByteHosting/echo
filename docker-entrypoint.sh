@@ -43,12 +43,16 @@ echo "🔍 Bun version:"
 bun --version
 echo ""
 echo "🗄️  Running database migrations..."
+
+# Try migrations first (for production with migration files)
 if bunx prisma migrate deploy 2>/dev/null; then
     echo "✅ Migrations applied successfully"
-elif bunx prisma db push --skip-generate 2>/dev/null; then
-    echo "✅ Database schema synced (no migrations found)"
+# If no migrations or migrations fail, try db push (for initial setup or development)
+elif bunx prisma db push --accept-data-loss --skip-generate 2>/dev/null; then
+    echo "✅ Database schema synced (using db push)"
 else
-    echo "⚠️  Warning: Database migration failed, attempting to continue..."
+    echo "⚠️  Warning: Database migration failed"
+    echo "    Attempting to continue - bot may have errors if schema is not synced"
 fi
 echo ""
 echo "🏃 Executing: bun run src/index.js"
