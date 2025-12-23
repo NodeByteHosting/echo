@@ -17,11 +17,11 @@ ls -lah /app/src | head -20
 echo ""
 echo "🔍 Environment check:"
 echo "   NODE_ENV: ${NODE_ENV}"
-echo "   TOKEN: ${TOKEN:+✅ SET}${TOKEN:-❌ NOT SET}"
+echo "   TOKEN: ${TOKEN:+✅ SET (hidden)}${TOKEN:-❌ NOT SET}"
 echo "   CLIENT_ID: ${CLIENT_ID:+✅ SET}${CLIENT_ID:-❌ NOT SET}"
-echo "   DATABASE_URL: ${DATABASE_URL:+✅ SET}${DATABASE_URL:-❌ NOT SET}"
-echo "   OPENAI_API_KEY: ${OPENAI_API_KEY:+✅ SET}${OPENAI_API_KEY:-❌ NOT SET}"
-echo "   TAVILY_API_KEY: ${TAVILY_API_KEY:+✅ SET}${TAVILY_API_KEY:-❌ NOT SET}"
+echo "   DATABASE_URL: ${DATABASE_URL:+✅ SET (hidden)}${DATABASE_URL:-❌ NOT SET}"
+echo "   OPENAI_API_KEY: ${OPENAI_API_KEY:+✅ SET (hidden)}${OPENAI_API_KEY:-❌ NOT SET}"
+echo "   TAVILY_API_KEY: ${TAVILY_API_KEY:+✅ SET (hidden)}${TAVILY_API_KEY:-❌ NOT SET}"
 echo ""
 
 # Check required environment variables
