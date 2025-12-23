@@ -10,13 +10,13 @@ RUN apk add --no-cache openssl
 # Copy package files and lockfile
 COPY package.json bun.lockb ./
 
-# Install dependencies
-RUN bun install --frozen-lockfile --production
-
-# Copy Prisma schema
+# Copy Prisma schema before install
 COPY prisma ./prisma
 
-# Generate Prisma Client
+# Install dependencies without scripts to avoid postinstall issues
+RUN bun install --frozen-lockfile --production --ignore-scripts
+
+# Generate Prisma Client explicitly
 RUN bunx prisma generate
 
 # Copy application files
