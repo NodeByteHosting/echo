@@ -13,23 +13,27 @@ COPY package.json bun.lockb ./
 # Copy Prisma schema before install
 COPY prisma ./prisma
 
-# Install dependencies without scripts to avoid postinstall issues
-RUN bun install --frozen-lockfile --production --ignore-scripts
+# Install ALL dependencies first (including devDependencies for build)
+RUN bun install --frozen-lockfile --ignore-scripts
 
-# Generate Prisma Client explicitly
+# Generate Prisma Client
 RUN bunx prisma generate
 
 # Copy application files
 COPY src ./src
 
 # Copy root-level config files
-COPY *.js ./
-COPY *.cjs ./
+COPY *.js ./ || true
+COPY *.cjs ./ || true
+
+# Remove devDependencies to reduce image size
+RUN bun install --frozen-lockfile --production --ignore-scripts
 
 # Set environment to production
 ENV NODE_ENV=production
 
 # Run the bot with Bun
 CMD ["bun", "run", "src/index.js"]
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s CMD pgrep -f bun || exit 1
