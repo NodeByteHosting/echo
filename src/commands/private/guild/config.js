@@ -184,28 +184,25 @@ export default {
                     if (!validateChannelPermissions(channel, client.user.id, channelType)) {
                         return interaction.editReply({
                             content:
-                                "⚠️ I don't have sufficient permissions in that channel. I need at least View Channel and Send Messages permissions.",
-                            ephemeral: true
+                                "⚠️ I don't have sufficient permissions in that channel. I need at least View Channel and Send Messages permissions."
                         })
                     }
 
                     // Validate channel type based on the setting
                     if (channelType === 'supportCategoryId' && channel.type !== 4) {
                         return interaction.editReply({
-                            content: '❌ Support category must be a category channel.',
-                            ephemeral: true
+                            content: '❌ Support category must be a category channel.'
                         })
                     }
 
                     if (channelType !== 'supportCategoryId' && channel.type !== 0 && channel.type !== 5) {
                         return interaction.editReply({
-                            content: '❌ This setting requires a text channel or announcement channel.',
-                            ephemeral: true
+                            content: '❌ This setting requires a text channel or announcement channel.'
                         })
                     }
 
                     // Update config and log the change
-                    await db.guild.updateConfig(guildId, { [channelType]: channel.id })
+                    await database.guild.updateConfig(guildId, { [channelType]: channel.id })
 
                     // Log the configuration change
                     await logConfigChange(
@@ -232,15 +229,13 @@ export default {
                     // Validate role - ensure it's not @everyone, managed, or higher than bot's role
                     if (role.id === interaction.guild.id) {
                         return interaction.editReply({
-                            content: '❌ You cannot set @everyone as a specific role.',
-                            ephemeral: true
+                            content: '❌ You cannot set @everyone as a specific role.'
                         })
                     }
 
                     if (role.managed) {
                         return interaction.editReply({
-                            content: '❌ You cannot set integration-managed roles (bot roles).',
-                            ephemeral: true
+                            content: '❌ You cannot set integration-managed roles (bot roles).'
                         })
                     }
 
@@ -249,13 +244,12 @@ export default {
 
                     if (role.position >= botHighestRole.position) {
                         return interaction.editReply({
-                            content: '❌ I cannot manage this role as it is higher than or equal to my highest role.',
-                            ephemeral: true
+                            content: '❌ I cannot manage this role as it is higher than or equal to my highest role.'
                         })
                     }
 
                     // Update the config
-                    await db.guild.updateConfig(guildId, { [roleType]: role.id })
+                    await database.guild.updateConfig(guildId, { [roleType]: role.id })
 
                     // Log the configuration change
                     await logConfigChange(
@@ -290,13 +284,12 @@ export default {
                     } else {
                         // Event already enabled
                         return interaction.editReply({
-                            content: `ℹ️ ${event.replace(/_/g, ' ')} is already ${enabled ? 'enabled' : 'disabled'}.`,
-                            ephemeral: true
+                            content: `ℹ️ ${event.replace(/_/g, ' ')} is already ${enabled ? 'enabled' : 'disabled'}.`
                         })
                     }
 
                     // Update the config
-                    await db.guild.updateConfig(guildId, { auditEvents: events })
+                    await database.guild.updateConfig(guildId, { auditEvents: events })
 
                     // Log the configuration change
                     await logConfigChange(
@@ -332,7 +325,7 @@ export default {
                     // Handle resetting all settings
                     if (setting === 'all') {
                         // Create a new default config (only preserving the guild ID and name)
-                        await db.guild.updateConfig(guildId, {
+                        await database.guild.updateConfig(guildId, {
                             name: guildName,
                             logChannelId: null,
                             modLogChannelId: null,
@@ -349,24 +342,22 @@ export default {
                         await logConfigChange(client, interaction, 'Reset', 'All configuration settings reset')
 
                         return interaction.editReply({
-                            content: '✅ All configuration settings have been reset to defaults.',
-                            ephemeral: true
+                            content: '✅ All configuration settings have been reset to defaults.'
                         })
                     }
 
                     // Reset specific setting
                     if (setting === 'auditEvents') {
-                        await db.guild.updateConfig(guildId, { auditEvents: [] })
+                        await database.guild.updateConfig(guildId, { auditEvents: [] })
                     } else {
-                        await db.guild.updateConfig(guildId, { [setting]: null })
+                        await database.guild.updateConfig(guildId, { [setting]: null })
                     }
 
                     // Log the configuration change
                     await logConfigChange(client, interaction, 'Reset', `${formatSettingName(setting)} has been reset`)
 
                     return interaction.editReply({
-                        content: `✅ ${formatSettingName(setting)} has been reset.`,
-                        ephemeral: true
+                        content: `✅ ${formatSettingName(setting)} has been reset.`
                     })
                 }
             }
@@ -385,8 +376,7 @@ export default {
             }
 
             return interaction.editReply({
-                content: errorMessage,
-                ephemeral: true
+                content: errorMessage
             })
         }
         return null
