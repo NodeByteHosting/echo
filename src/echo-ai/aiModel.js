@@ -2,6 +2,33 @@ import { generateText } from 'ai'
 import { aiConfig } from '#configs/ai.config.js'
 import { promptService } from '#ai/services/prompt.service.js'
 
+// Simple rate limiter for OpenAI requests
+class RateLimiter {
+    constructor(maxRequests = 3, windowMs = 60000) {
+        this.maxRequests = maxRequests
+        this.windowMs = windowMs
+        this.requests = []
+    }
+
+    async waitForSlot() {
+        const now = Date.now()
+        // Remove old requests outside the window
+        this.requests = this.requests.filter(time => now - time < this.windowMs)
+        
+        if (this.requests.length >= this.maxRequests) {
+            const oldestRequest = this.requests[0]
+            const waitTime = this.windowMs - (now - oldestRequest) + 100 // Add 100ms buffer
+            console.log(`Rate limit: waiting ${waitTime}ms before next request`)
+            await new Promise(resolve => setTimeout(resolve, waitTime))
+            return this.waitForSlot() // Recursive call after waiting
+        }
+        
+        this.requests.push(now)
+    }
+}
+
+const rateLimiter = new RateLimiter(3, 60000) // 3 requests per minute
+
 /**
  * AI Model wrapper that provides a consistent interface for agents
  */
@@ -71,6 +98,9 @@ export class AIModel {
 
             // Set a reasonable default max tokens based on prompt length
             const dynamicMaxTokens = this._calculateOptimalTokens(optimizedPrompt)
+
+            // Wait for rate limit slot before making request
+            await rateLimiter.waitForSlot()
 
             // Create a proper system message that won't be overridden
             const result = await generateText({

@@ -633,7 +633,7 @@ class AIService {
      * @private
      */
     _classifyMessageIntent = async message => {
-        // Quick checks for obvious patterns
+        // Quick checks for obvious patterns (no AI call needed)
         const msg = message.toLowerCase()
 
         // Add research pattern check
@@ -690,7 +690,12 @@ class AIService {
             return 'knowledge'
         }
 
-        // Use AI for more nuanced classification with improved prompt
+        // For simple/short messages, default to conversation without AI call
+        if (message.length < 50 || msg.match(/^(hi|hello|hey|thanks|ok|yes|no|sure)\b/)) {
+            return 'conversation'
+        }
+
+        // Only use AI for complex/ambiguous cases - this reduces API calls significantly
         try {
             const classification = await this.aiModel.getResponse(`Classify this message into one of these categories:
 Message: "${message}"
