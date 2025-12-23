@@ -1,527 +1,514 @@
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Echo {
-    id            String          @id @default("echobot")
-    modelSettings EchoModels      @relation(fields: [id], references: [id], map: "Echo_modelSettings_fkey")
-    maintSettings EchoMaintenance @relation(fields: [id], references: [id], map: "Echo_maintSettings_fkey")
-    coreSettings  EchoSettings    @relation(fields: [id], references: [id], map: "Echo_coreSettings_fkey")
-    coreBranding  EchoBranding    @relation(fields: [id], references: [id], map: "Echo_coreBranding_fkey")
-    coreFeatures  EchoFeatures    @relation(fields: [id], references: [id], map: "Echo_coreFeatures_fkey")
-    createdAt     DateTime        @default(now())
-    updatedAt     DateTime        @updatedAt
-    updatedBy     BigInt
+  id            String          @id @default("echobot")
+  modelSettings EchoModels      @relation(fields: [id], references: [id], map: "Echo_modelSettings_fkey")
+  maintSettings EchoMaintenance @relation(fields: [id], references: [id], map: "Echo_maintSettings_fkey")
+  coreSettings  EchoSettings    @relation(fields: [id], references: [id], map: "Echo_coreSettings_fkey")
+  coreBranding  EchoBranding    @relation(fields: [id], references: [id], map: "Echo_coreBranding_fkey")
+  coreFeatures  EchoFeatures    @relation(fields: [id], references: [id], map: "Echo_coreFeatures_fkey")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  updatedBy     BigInt
 }
 
 model EchoModels {
-    id             String   @id @default("echomodels")
-    default        String?  @default("gpt-4.1.-nano")
-    allowed        String[] @default(["gpt-4.1-nano", "gpt-3.5-turbo"])
-    enabled        Boolean? @default(true)
-    disabledReason String   @db.Text
-    Echo           Echo[]
+  id             String   @id @default("echomodels")
+  default        String?  @default("gpt-4o-mini")
+  allowed        String[] @default(["gpt-4o-mini", "gpt-3.5-turbo"])
+  enabled        Boolean? @default(true)
+  disabledReason String   @db.Text
+  Echo           Echo[]
 }
 
 model EchoPrompts {
-    id        String  @id @default("echoprompts")
-    short     String? @default("You're Echo, NodeByte's snarky fox assistant. Be helpful, technical, and a bit sarcastic.") @db.Text
-    system    String? @default("You are Echo, NodeByte's fox assistant. Be helpful, technical, and a bit sarcastic.") @db.Text
-    technical String? @default("You're Echo, NodeByte's technical assistant. Focus on accuracy for technical topics.") @db.Text
+  id        String  @id @default("echoprompts")
+  short     String? @db.Text
+  system    String? @db.Text
+  technical String? @db.Text
 }
 
 model EchoPerformance {
-    id                    String   @id @default("echooptimization")
-    useCache              Boolean? @default(false)
-    cacheTTL              Int?     @default(3600)
-    prioritizeSpeed       Boolean? @default(true)
-    smartTokenBudgeting   Boolean? @default(true)
-    maxConcurrentRequests Boolean? @default(true)
-    responseCacheSize     Int?     @default(500)
-    knowledgeCacheTTL     Int?     @default(1800)
-    useRateLimit          Boolean? @default(false)
-    rateLimitTime         Int?     @default(60)
-    dbPoolSize            Int?     @default(10)
+  id                    String   @id @default("echooptimization")
+  useCache              Boolean? @default(false)
+  cacheTTL              Int?     @default(3600)
+  prioritizeSpeed       Boolean? @default(true)
+  smartTokenBudgeting   Boolean? @default(true)
+  maxConcurrentRequests Boolean? @default(true)
+  responseCacheSize     Int?     @default(500)
+  knowledgeCacheTTL     Int?     @default(1800)
+  useRateLimit          Boolean? @default(false)
+  rateLimitTime         Int?     @default(60)
+  dbPoolSize            Int?     @default(10)
 }
 
 model EchoMaintenance {
-    id      String  @id @default("echomaintenance")
-    enabled Boolean @default(false)
-    reason  String? @db.Text
-    admin   Json?
-    Echo    Echo[]
+  id      String  @id @default("echomaintenance")
+  enabled Boolean @default(false)
+  reason  String? @db.Text
+  admin   Json?
+  Echo    Echo[]
 }
 
 model EchoSettings {
-    id           String  @id @default("echosettings")
-    logLevel     String? @default("info")
-    logChannel   String? @default("1381758551927820288")
-    supportGuild String? @default("1240063050581676143")
-    supportEmail String? @default("support@nodebyte.co.uk")
-    Echo         Echo[]
+  id           String  @id @default("echosettings")
+  logLevel     String? @default("info")
+  logChannel   String?
+  supportGuild String?
+  supportEmail String?
+  Echo         Echo[]
 }
 
 model EchoBranding {
-    id     String  @id @default("echobranding")
-    logo   String? @default("https://codemeapixel.dev/echobot/EchoChilling.png")
-    color  String? @default("#7289DA")
-    footer String? @default("© 2025 - NodeByte LTD")
-    Echo   Echo[]
+  id     String  @id @default("echobranding")
+  logo   String?
+  color  String? @default("#7289DA")
+  footer String?
+  Echo   Echo[]
 }
 
 model EchoFeatures {
-    id         String   @id @default("echofeatures")
-    echoAi     Boolean? @default(true)
-    msgCmds    Boolean? @default(true)
-    slashCmds  Boolean? @default(true)
-    tickets    Boolean? @default(true)
-    moderation Boolean? @default(true)
-    directMsgs Boolean? @default(true)
-    twitterApi Boolean? @default(false)
-    githubApi  Boolean? @default(false)
-    Echo       Echo[]
+  id         String   @id @default("echofeatures")
+  echoAi     Boolean? @default(true)
+  msgCmds    Boolean? @default(true)
+  slashCmds  Boolean? @default(true)
+  tickets    Boolean? @default(true)
+  moderation Boolean? @default(true)
+  directMsgs Boolean? @default(true)
+  twitterApi Boolean? @default(false)
+  githubApi  Boolean? @default(false)
+  Echo       Echo[]
 }
 
 model AuditLog {
-    id          BigInt     @id @default(autoincrement())
-    guildId     String
-    eventType   AuditEvent
-    actionType  String
-    performedBy BigInt?
-    targetId    String?
-    targetType  String
-    changes     Json?
-    details     String?    @db.Text
-    createdAt   DateTime   @default(now())
+  id          BigInt     @id @default(autoincrement())
+  guildId     String
+  eventType   AuditEvent
+  actionType  String
+  performedBy BigInt?
+  targetId    String?
+  targetType  String
+  changes     Json?
+  details     String?    @db.Text
+  createdAt   DateTime   @default(now())
 
-    @@index([guildId])
-    @@index([eventType])
-    @@index([performedBy])
-    @@index([createdAt])
+  @@index([guildId])
+  @@index([eventType])
+  @@index([performedBy])
+  @@index([createdAt])
 }
 
 model Guild {
-    id         String         @id @unique
-    name       String         @unique
-    beta       Boolean?       @default(false)
-    premium    Boolean?       @default(false)
-    banned     Boolean?       @default(false)
-    features   GuildFeatures?
-    createdAt  DateTime       @default(now())
-    updatedAt  DateTime       @updatedAt
-    GuildRoles GuildRoles?
+  id         String         @id @unique
+  name       String         @unique
+  beta       Boolean?       @default(false)
+  premium    Boolean?       @default(false)
+  banned     Boolean?       @default(false)
+  features   GuildFeatures?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  GuildRoles GuildRoles?
 }
 
 model GuildFeatures {
-    id         String        @id
-    guild      Guild         @relation(fields: [id], references: [id])
-    echoAi     Boolean?      @default(true)
-    moderation Boolean?      @default(false)
-    audits     GuildAudits?
-    tickets    GuildTickets?
-    gate       GuildGates?
+  id         String        @id
+  guild      Guild         @relation(fields: [id], references: [id])
+  echoAi     Boolean?      @default(true)
+  moderation Boolean?      @default(false)
+  audits     GuildAudits?
+  tickets    GuildTickets?
+  gate       GuildGates?
 }
 
 model GuildGates {
-    id            String        @id
-    enabled       Boolean?      @default(false)
-    channel       String?
-    logChannel    String?
-    guildFeatures GuildFeatures @relation(fields: [id], references: [id])
+  id            String        @id
+  enabled       Boolean?      @default(false)
+  channel       String?
+  logChannel    String?
+  guildFeatures GuildFeatures @relation(fields: [id], references: [id])
 }
 
 model GuildTickets {
-    id            String        @id
-    enabled       Boolean?      @default(false)
-    categoryId    String?
-    auditId       String?
-    guildFeatures GuildFeatures @relation(fields: [id], references: [id])
+  id            String        @id
+  enabled       Boolean?      @default(false)
+  categoryId    String?
+  auditId       String?
+  guildFeatures GuildFeatures @relation(fields: [id], references: [id])
 }
 
 model GuildRoles {
-    id             String  @id
-    adminRole      String?
-    modRole        String?
-    gatekeeperRole String?
-    supportRole    String?
-    memberRole     String?
-    guildConfig    Guild   @relation(fields: [id], references: [id])
+  id             String  @id
+  adminRole      String?
+  modRole        String?
+  gatekeeperRole String?
+  supportRole    String?
+  memberRole     String?
+  guildConfig    Guild   @relation(fields: [id], references: [id])
 }
 
 model GuildAudits {
-    id       String         @id
-    system   Boolean?       @default(false)
-    tickets  Boolean?       @default(false)
-    channels AuditChannels?
+  id       String         @id
+  system   Boolean?       @default(false)
+  tickets  Boolean?       @default(false)
+  channels AuditChannels?
 
-    auditEvents AuditEvent[]
+  auditEvents AuditEvent[]
 
-    guildConfig GuildFeatures @relation(fields: [id], references: [id])
+  guildConfig GuildFeatures @relation(fields: [id], references: [id])
 }
 
 model AuditChannels {
-    id      String      @id
-    system  String?
-    tickets String?
-    guild   GuildAudits @relation(fields: [id], references: [id])
+  id      String      @id
+  system  String?
+  tickets String?
+  guild   GuildAudits @relation(fields: [id], references: [id])
 }
 
 model User {
-    id                  BigInt                @id
-    username            String                @default("unknown_user")
-    displayName         String?               @default("Unknown User")
-    email               String?               @unique
-    role                UserRole              @default(USER)
-    tickets             Ticket[]              @relation("UserTickets")
-    messages            Message[]             @relation("UserMessages")
-    permissions         Permission[]          @default([])
-    isBanned            Boolean               @default(false)
-    bannedUntil         DateTime?
-    banReason           String?
-    createdAt           DateTime              @default(now())
-    updatedAt           DateTime              @updatedAt
-    SupportAgent        SupportAgent?
-    moderationReceived  ModerationLog[]       @relation("ModeratedUser")
-    moderationPerformed ModerationLog[]       @relation("ModeratorUser")
-    profile             Profile?
-    economy             Economy?
-    level               Level?
-    statistics          Statistics?
-    achievements        Achievement[]
-    conversations       ConversationHistory[]
-    knowledgeEntries    KnowledgeBase[]
+  id                  BigInt                @id
+  username            String                @default("unknown_user")
+  displayName         String?               @default("Unknown User")
+  email               String?               @unique
+  role                UserRole              @default(USER)
+  tickets             Ticket[]              @relation("UserTickets")
+  messages            Message[]             @relation("UserMessages")
+  permissions         Permission[]          @default([])
+  isBanned            Boolean               @default(false)
+  bannedUntil         DateTime?
+  banReason           String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  SupportAgent        SupportAgent?
+  moderationReceived  ModerationLog[]       @relation("ModeratedUser")
+  moderationPerformed ModerationLog[]       @relation("ModeratorUser")
+  profile             Profile?
+  economy             Economy?
+  level               Level?
+  statistics          Statistics?
+  achievements        Achievement[]
+  conversations       ConversationHistory[]
+  knowledgeEntries    KnowledgeBase[]
 }
 
 model Ticket {
-    id             Int             @id @default(autoincrement())
-    title          String
-    description    String
-    status         TicketStatus    @default(OPEN)
-    userId         BigInt
-    user           User            @relation("UserTickets", fields: [userId], references: [id])
-    messages       Message[]       @relation("TicketMessages")
-    assignedTo     BigInt?
-    assignedAgent  SupportAgent?   @relation("AssignedAgentToTicket", fields: [assignedTo], references: [id])
-    priority       Int             @default(1)
-    createdAt      DateTime        @default(now())
-    updatedAt      DateTime        @updatedAt
-    closedAt       DateTime?
-    supportAgentId BigInt?
-    SupportAgent   SupportAgent?   @relation("SupportAgentToTicket", fields: [supportAgentId], references: [id])
-    isEscalated    Boolean         @default(false)
-    threadId       String?         @unique
-    category       String?
-    resolution     String?
-    feedback       TicketFeedback?
+  id             Int             @id @default(autoincrement())
+  title          String
+  description    String
+  status         TicketStatus    @default(OPEN)
+  userId         BigInt
+  user           User            @relation("UserTickets", fields: [userId], references: [id])
+  messages       Message[]       @relation("TicketMessages")
+  assignedTo     BigInt?
+  assignedAgent  SupportAgent?   @relation("AssignedAgentToTicket", fields: [assignedTo], references: [id])
+  priority       Int             @default(1)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  closedAt       DateTime?
+  supportAgentId BigInt?
+  SupportAgent   SupportAgent?   @relation("SupportAgentToTicket", fields: [supportAgentId], references: [id])
+  isEscalated    Boolean         @default(false)
+  threadId       String?         @unique
+  category       String?
+  resolution     String?
+  feedback       TicketFeedback?
 }
 
 model TicketFeedback {
-    id        Int      @id @default(autoincrement())
-    ticketId  Int      @unique
-    ticket    Ticket   @relation(fields: [ticketId], references: [id])
-    rating    Int
-    comment   String?  @db.Text
-    createdAt DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  ticketId  Int      @unique
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  rating    Int
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
 }
 
 model Message {
-    id         Int      @id @default(autoincrement())
-    content    String
-    ticketId   Int
-    ticket     Ticket   @relation("TicketMessages", fields: [ticketId], references: [id])
-    senderId   BigInt
-    sender     User     @relation("UserMessages", fields: [senderId], references: [id])
-    createdAt  DateTime @default(now())
-    isInternal Boolean  @default(false)
+  id         Int      @id @default(autoincrement())
+  content    String
+  ticketId   Int
+  ticket     Ticket   @relation("TicketMessages", fields: [ticketId], references: [id])
+  senderId   BigInt
+  sender     User     @relation("UserMessages", fields: [senderId], references: [id])
+  createdAt  DateTime @default(now())
+  isInternal Boolean  @default(false)
 
-    @@index([ticketId])
-    @@index([senderId])
+  @@index([ticketId])
+  @@index([senderId])
 }
 
 model SupportAgent {
-    id        BigInt   @id
-    userId    BigInt   @unique
-    user      User     @relation(fields: [userId], references: [id])
-    tickets   Ticket[] @relation("AssignedAgentToTicket")
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    isActive  Boolean  @default(true)
-    Ticket    Ticket[] @relation("SupportAgentToTicket")
+  id        BigInt   @id
+  userId    BigInt   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  tickets   Ticket[] @relation("AssignedAgentToTicket")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isActive  Boolean  @default(true)
+  Ticket    Ticket[] @relation("SupportAgentToTicket")
 }
 
 model ModerationLog {
-    id          Int       @id @default(autoincrement())
-    userId      BigInt
-    targetUser  User      @relation("ModeratedUser", fields: [userId], references: [id])
-    action      String
-    reason      String
-    createdAt   DateTime  @default(now())
-    expiresAt   DateTime?
-    performedBy BigInt?
-    moderator   User?     @relation("ModeratorUser", fields: [performedBy], references: [id])
+  id          Int       @id @default(autoincrement())
+  userId      BigInt
+  targetUser  User      @relation("ModeratedUser", fields: [userId], references: [id])
+  action      String
+  reason      String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+  performedBy BigInt?
+  moderator   User?     @relation("ModeratorUser", fields: [performedBy], references: [id])
 
-    @@index([userId])
-    @@index([action])
-    @@index([createdAt])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model Profile {
-    id              Int       @id @default(autoincrement())
-    userId          BigInt    @unique
-    user            User      @relation(fields: [userId], references: [id])
-    bio             String?   @db.Text
-    customTitle     String?
-    badges          Badge[]
-    selectedBadge   Badge?    @relation("SelectedBadge", fields: [selectedBadgeId], references: [id])
-    selectedBadgeId Int?
-    background      String?
-    accent          String?
-    birthday        DateTime?
-    timezone        String?
-    socials         Json?
-    settings        Json?
-    createdAt       DateTime  @default(now())
-    updatedAt       DateTime  @updatedAt
+  id              Int       @id @default(autoincrement())
+  userId          BigInt    @unique
+  user            User      @relation(fields: [userId], references: [id])
+  bio             String?   @db.Text
+  customTitle     String?
+  badges          Badge[]
+  selectedBadge   Badge?    @relation("SelectedBadge", fields: [selectedBadgeId], references: [id])
+  selectedBadgeId Int?
+  background      String?
+  accent          String?
+  birthday        DateTime?
+  timezone        String?
+  socials         Json?
+  settings        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Economy {
-    id           Int           @id @default(autoincrement())
-    userId       BigInt        @unique
-    user         User          @relation(fields: [userId], references: [id])
-    balance      Int           @default(0)
-    bank         Int           @default(0)
-    inventory    Inventory[]
-    transactions Transaction[]
-    lastDaily    DateTime?
-    lastWeekly   DateTime?
-    streak       Int           @default(0)
+  id           Int           @id @default(autoincrement())
+  userId       BigInt        @unique
+  user         User          @relation(fields: [userId], references: [id])
+  balance      Int           @default(0)
+  bank         Int           @default(0)
+  inventory    Inventory[]
+  transactions Transaction[]
+  lastDaily    DateTime?
+  lastWeekly   DateTime?
+  streak       Int           @default(0)
 }
 
 model Transaction {
-    id          Int             @id @default(autoincrement())
-    economyId   Int
-    economy     Economy         @relation(fields: [economyId], references: [id])
-    type        TransactionType
-    amount      Int
-    description String?
-    createdAt   DateTime        @default(now())
+  id          Int             @id @default(autoincrement())
+  economyId   Int
+  economy     Economy         @relation(fields: [economyId], references: [id])
+  type        TransactionType
+  amount      Int
+  description String?
+  createdAt   DateTime        @default(now())
 
-    @@index([economyId])
-    @@index([type])
+  @@index([economyId])
+  @@index([type])
 }
 
 model Item {
-    id          Int         @id @default(autoincrement())
-    name        String      @unique
-    type        ItemType
-    description String?     @db.Text
-    price       Int
-    isLimited   Boolean     @default(false)
-    quantity    Int?
-    inventory   Inventory[]
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  type        ItemType
+  description String?     @db.Text
+  price       Int
+  isLimited   Boolean     @default(false)
+  quantity    Int?
+  inventory   Inventory[]
 
-    @@index([type])
+  @@index([type])
 }
 
 model Inventory {
-    id        Int     @id @default(autoincrement())
-    economyId Int
-    economy   Economy @relation(fields: [economyId], references: [id])
-    itemId    Int
-    item      Item    @relation(fields: [itemId], references: [id])
-    quantity  Int     @default(1)
-    equipped  Boolean @default(false)
+  id        Int     @id @default(autoincrement())
+  economyId Int
+  economy   Economy @relation(fields: [economyId], references: [id])
+  itemId    Int
+  item      Item    @relation(fields: [itemId], references: [id])
+  quantity  Int     @default(1)
+  equipped  Boolean @default(false)
 
-    @@index([economyId])
-    @@index([itemId])
+  @@index([economyId])
+  @@index([itemId])
 }
 
 model Level {
-    id           Int       @id @default(autoincrement())
-    userId       BigInt    @unique
-    user         User      @relation(fields: [userId], references: [id])
-    level        Int       @default(1)
-    xp           Int       @default(0)
-    totalXp      Int       @default(0)
-    messageCount Int       @default(0)
-    lastMessage  DateTime?
+  id           Int       @id @default(autoincrement())
+  userId       BigInt    @unique
+  user         User      @relation(fields: [userId], references: [id])
+  level        Int       @default(1)
+  xp           Int       @default(0)
+  totalXp      Int       @default(0)
+  messageCount Int       @default(0)
+  lastMessage  DateTime?
 
-    @@index([userId])
-    @@index([level])
+  @@index([userId])
+  @@index([level])
 }
 
 model Badge {
-    id          Int       @id @default(autoincrement())
-    name        String    @unique
-    description String    @db.Text
-    icon        String
-    profiles    Profile[]
-    selectedBy  Profile[] @relation("SelectedBadge")
-    rarity      Int       @default(1)
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String    @db.Text
+  icon        String
+  profiles    Profile[]
+  selectedBy  Profile[] @relation("SelectedBadge")
+  rarity      Int       @default(1)
 
-    @@index([rarity])
+  @@index([rarity])
 }
 
 model Achievement {
-    id          Int             @id @default(autoincrement())
-    name        String          @unique
-    description String          @db.Text
-    type        AchievementType
-    requirement Int
-    reward      Int
-    icon        String
-    users       User[]
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
+  description String          @db.Text
+  type        AchievementType
+  requirement Int
+  reward      Int
+  icon        String
+  users       User[]
 
-    @@index([type])
+  @@index([type])
 }
 
 model Statistics {
-    id              Int      @id @default(autoincrement())
-    userId          BigInt   @unique
-    user            User     @relation(fields: [userId], references: [id])
-    commandsUsed    Int      @default(0)
-    ticketsClosed   Int      @default(0)
-    messagesDeleted Int      @default(0)
-    usersBanned     Int      @default(0)
-    usersUnbanned   Int      @default(0)
-    warningsGiven   Int      @default(0)
-    lastActive      DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  userId          BigInt   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  commandsUsed    Int      @default(0)
+  ticketsClosed   Int      @default(0)
+  messagesDeleted Int      @default(0)
+  usersBanned     Int      @default(0)
+  usersUnbanned   Int      @default(0)
+  warningsGiven   Int      @default(0)
+  lastActive      DateTime @default(now())
 }
 
 model ConversationHistory {
-    id           Int      @id @default(autoincrement())
-    content      String   @db.Text
-    isAiResponse Boolean  @default(false)
-    timestamp    DateTime @default(now())
-    userId       BigInt // Using BigInt for Discord IDs
-    user         User     @relation(fields: [userId], references: [id])
+  id           Int      @id @default(autoincrement())
+  content      String   @db.Text
+  isAiResponse Boolean  @default(false)
+  timestamp    DateTime @default(now())
+  userId       BigInt
+  user         User     @relation(fields: [userId], references: [id])
 
-    @@index([userId])
+  @@index([userId])
 }
 
 model KnowledgeBase {
-    id          Int      @id @default(autoincrement())
-    title       String   @db.Text
-    content     String   @db.Text
-    category    String?
-    tags        String[]
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
-    createdBy   BigInt
-    user        User     @relation(fields: [createdBy], references: [id])
-    useCount    Int      @default(0)
-    rating      Float    @default(0)
-    ratingCount Int      @default(0)
-    isVerified  Boolean  @default(false)
+  id          Int      @id @default(autoincrement())
+  title       String   @db.Text
+  content     String   @db.Text
+  category    String?
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   BigInt
+  user        User     @relation(fields: [createdBy], references: [id])
+  useCount    Int      @default(0)
+  rating      Float    @default(0)
+  ratingCount Int      @default(0)
+  isVerified  Boolean  @default(false)
 
-    @@index([tags])
-    @@index([category])
-    @@index([createdBy])
+  @@index([tags])
+  @@index([category])
+  @@index([createdBy])
 }
 
 enum UserRole {
-    USER
-    SUPPORT_AGENT
-    MODERATOR
-    DEVELOPER
-    ADMIN
+  USER
+  SUPPORT_AGENT
+  MODERATOR
+  DEVELOPER
+  ADMIN
 }
 
 enum TicketStatus {
-    OPEN
-    IN_PROGRESS
-    RESOLVED
-    CLOSED
-    ESCALATED
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  ESCALATED
 }
 
 enum Permission {
-    // Ticket System
-    CREATE_TICKET
-    VIEW_TICKET
-    CLOSE_TICKET
-    ASSIGN_TICKET
-    MANAGE_TICKETS
-    ESCALATE_TICKET
-    VIEW_ALL_TICKETS
-
-    // User Management
-    BAN_USER
-    UNBAN_USER
-    WARN_USER
-    MANAGE_ROLES
-    VIEW_USER_INFO
-    MANAGE_USER_PROFILE
-
-    // Knowledge Base
-    VIEW_KB
-    CREATE_KB
-    EDIT_KB
-    DELETE_KB
-    VERIFY_KB
-
-    // System Commands
-    VIEW_SYSTEM_STATUS
-    VIEW_METRICS
-    MANAGE_BOT_SETTINGS
-
-    // Support System
-    PROVIDE_SUPPORT
-    VIEW_SUPPORT_QUEUE
-    MANAGE_SUPPORT_AGENTS
-
-    // Moderation
-    DELETE_MESSAGES
-    TIMEOUT_USER
-    VIEW_AUDIT_LOGS
-    MANAGE_THREADS
-
-    // Server Management
-    MANAGE_PTERODACTYL
-    VIEW_SERVER_STATUS
-    RESTART_SERVERS
-    MODIFY_SERVER_CONFIG
+  CREATE_TICKET
+  VIEW_TICKET
+  CLOSE_TICKET
+  ASSIGN_TICKET
+  MANAGE_TICKETS
+  ESCALATE_TICKET
+  VIEW_ALL_TICKETS
+  BAN_USER
+  UNBAN_USER
+  WARN_USER
+  MANAGE_ROLES
+  VIEW_USER_INFO
+  MANAGE_USER_PROFILE
+  VIEW_KB
+  CREATE_KB
+  EDIT_KB
+  DELETE_KB
+  VERIFY_KB
+  VIEW_SYSTEM_STATUS
+  VIEW_METRICS
+  MANAGE_BOT_SETTINGS
+  PROVIDE_SUPPORT
+  VIEW_SUPPORT_QUEUE
+  MANAGE_SUPPORT_AGENTS
+  DELETE_MESSAGES
+  TIMEOUT_USER
+  VIEW_AUDIT_LOGS
+  MANAGE_THREADS
+  MANAGE_PTERODACTYL
+  VIEW_SERVER_STATUS
+  RESTART_SERVERS
+  MODIFY_SERVER_CONFIG
 }
 
 enum TransactionType {
-    PURCHASE
-    SALE
-    REWARD
-    TRANSFER
-    DAILY
-    WEEKLY
-    WORK
+  PURCHASE
+  SALE
+  REWARD
+  TRANSFER
+  DAILY
+  WEEKLY
+  WORK
 }
 
 enum ItemType {
-    BADGE
-    ROLE
-    BACKGROUND
-    COLLECTIBLE
-    CONSUMABLE
-    SPECIAL
+  BADGE
+  ROLE
+  BACKGROUND
+  COLLECTIBLE
+  CONSUMABLE
+  SPECIAL
 }
 
 enum AchievementType {
-    MESSAGES
-    TICKETS
-    HELP
-    MODERATION
-    SPECIAL
+  MESSAGES
+  TICKETS
+  HELP
+  MODERATION
+  SPECIAL
 }
 
 enum AuditEvent {
-    ECHO_EVENTS
-    MESSAGE_EVENTS
-    MEMBER_EVENTS
-    CHANNEL_EVENTS
-    ROLE_EVENTS
-    MOD_EVENTS
-    VOICE_EVENTS
-    THREAD_EVENTS
+  ECHO_EVENTS
+  MESSAGE_EVENTS
+  MEMBER_EVENTS
+  CHANNEL_EVENTS
+  ROLE_EVENTS
+  MOD_EVENTS
+  VOICE_EVENTS
+  THREAD_EVENTS
 }
