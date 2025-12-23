@@ -86,6 +86,12 @@ export class AIModel {
             return result.text
         } catch (error) {
             console.error('AI Model Error:', error)
+            
+            // Check if it's a rate limit error
+            if (error.message?.includes('Rate limit') || error.statusCode === 429) {
+                throw new Error('Rate limit exceeded. Please try again in a moment.')
+            }
+            
             throw new Error(`AI model request failed: ${error.message}`)
         }
     }

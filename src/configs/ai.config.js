@@ -1,6 +1,6 @@
 export const aiConfig = {
     // Model configuration
-    model: 'gpt-4.1-nano',
+    model: 'gpt-4o-mini',
     temperature: 0.7,
     maxTokens: 1500,
 
