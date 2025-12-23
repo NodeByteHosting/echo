@@ -22,9 +22,12 @@ RUN bunx prisma generate
 # Copy application files
 COPY src ./src
 
-# Copy root-level config files
-COPY *.js ./ || true
-COPY *.cjs ./ || true
+# Copy specific root-level config files
+COPY ai.config.js ./
+COPY cacheManager.js ./
+COPY presence.js ./
+COPY prompt.service.js ./
+COPY commitlint.config.cjs ./
 
 # Remove devDependencies to reduce image size
 RUN bun install --frozen-lockfile --production --ignore-scripts
