@@ -4,8 +4,8 @@ FROM oven/bun:1-alpine
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies for Prisma
-RUN apk add --no-cache openssl
+# Install system dependencies for Prisma and utilities
+RUN apk add --no-cache openssl procps
 
 # Copy package files and lockfile
 COPY package.json bun.lockb ./
